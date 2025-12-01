@@ -62,6 +62,7 @@ MODULES TRACK:
 (Use cases: appsec audits, security reviews, pentesting)
 
 
+_hybrid security testing automation framework ## pentesting pilot ## orchestrator_
 
 
 
