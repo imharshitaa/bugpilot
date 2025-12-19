@@ -1,0 +1,27 @@
+name: BugPilot – File Inclusion Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  file_inclusion_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - run: pip install -r requirements.txt
+
+    - name: Run File Inclusion Scan
+      env:
+        ENABLED_MODULE: file_inclusion
+      run: python3 main.py
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: file-inclusion-report
+        path: reports/output/*.md
