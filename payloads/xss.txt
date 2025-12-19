@@ -1,1 +1,8 @@
-editable test payloads
+# Safe XSS reflection indicators (non-harmful)
+<xss_test>
+"><xss_test>
+'"><xss_test>
+<xsstest123>
+<TEST_XSS>
+<<xss>>
+
