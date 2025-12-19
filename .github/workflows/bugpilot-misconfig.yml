@@ -1,0 +1,28 @@
+name: BugPilot – Security Misconfiguration Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  misconfig_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - run: pip install -r requirements.txt
+
+    - name: Run Misconfiguration Scan
+      env:
+        ENABLED_MODULE: misconfig
+      run: python3 main.py
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: misconfig-report
+        path: reports/output/*.md
+
