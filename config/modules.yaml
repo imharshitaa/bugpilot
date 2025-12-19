@@ -5,22 +5,37 @@ modules:
 
   xss:
     enabled: true
-    description: "Detect reflected input and possible XSS vectors."
-
+  
   sqli:
-    enabled: true
-    description: "Detect error-based SQL Injection signs."
+    enabled: false
 
   ssrf:
-    enabled: true
-    description: "Detect SSRF patterns through internal URL probing."
+    enabled: false
 
-  auth_bypass:
-    enabled: true
-    description: "Detect missing/broken authentication / access control."
+  idor:
+    enabled: false
 
+  open_redirect:
+    enabled: false
+
+  path_traversal:
+    enabled: false
+
+  cors_misconfig:
+    enabled: false
+ 
+  csrf_weakness:
+    enabled: false
+  
   misconfig:
-    enabled: true
-    description: "Detect security misconfigurations via headers & server info."
+    enabled: false
+  
+  file_inclusion:
+    enabled: false
+  
+  auth_bypass:
+    enabled: false
+
+
 
 
