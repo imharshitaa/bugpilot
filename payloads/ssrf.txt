@@ -1,1 +1,7 @@
+# Safe SSRF detection test URLs
+http://localhost
+http://127.0.0.1
+http://0.0.0.0
+http://169.254.169.254     # cloud metadata indicator (safe detection)
+http://[::1]               # IPv6 localhost
 
