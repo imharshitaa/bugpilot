@@ -1,1 +1,18 @@
+# Core HTTP library
+requests==2.31.0
+
+# HTML parsing
+beautifulsoup4==4.12.2
+
+# YAML config loading
+PyYAML==6.0.1
+
+# For URL parsing & crawler reliability
+urllib3==2.1.0
+
+# For handling HTML character sets & parsing safety
+lxml==4.9.3
+
+# Optional: If you want colored terminal output in future (harmless)
+rich==13.7.0
 
