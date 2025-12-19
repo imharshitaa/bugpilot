@@ -1,0 +1,27 @@
+name: BugPilot – Auth Bypass Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auth_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - run: pip install -r requirements.txt
+
+    - name: Run Auth Bypass Scan
+      env:
+        ENABLED_MODULE: auth_bypass
+      run: python3 main.py
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: auth-bypass-report
+        path: reports/output/*.md
