@@ -1,0 +1,27 @@
+name: BugPilot – CORS Misconfiguration Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cors_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - run: pip install -r requirements.txt
+
+    - name: Run CORS Scan
+      env:
+        ENABLED_MODULE: cors_misconfig
+      run: python3 main.py
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: cors-report
+        path: reports/output/*.md
