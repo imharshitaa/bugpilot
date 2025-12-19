@@ -1,8 +1,7 @@
-# engine - crawling and endpoint discovery
 """
 crawler.py
 -----------
-Discovers additional URLs from a base target using:
+Discovers additional URLs from a base target using: engine - crawling and endpoint discovery
 - HTML link extraction
 - Script file parsing
 - Simple regex-based URL discovery
