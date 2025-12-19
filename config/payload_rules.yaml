@@ -1,1 +1,48 @@
+# payload_rules.yaml
+# Defines safe payloads used by modules for detection logic.
+
+xss:
+  payloads:
+    - "<xss_test>"
+    - "\"><xss_test>"
+  apply_to_methods: ["GET", "POST"]
+  match_indicators:
+    - "<xss_test>"
+
+sqli:
+  payloads:
+    - "'"
+    - "\""
+    - "' OR '1'='1"
+  error_signatures:
+    - "SQL syntax"
+    - "database error"
+    - "mysql"
+    - "syntax error"
+    - "unexpected error"
+
+ssrf:
+  payloads:
+    - "http://localhost"
+    - "http://127.0.0.1"
+    - "http://169.254.169.254"   # AWS metadata (safe indicator only)
+  match_indicators:
+    - "Connection refused"
+    - "refused"
+    - "Internal Server Error"
+
+auth_bypass:
+  unauth_indicators:
+    - "200 OK"
+    - "Welcome admin"
+    - "Dashboard"
+    - "User: admin"
+
+misconfig:
+  headers_to_check:
+    - "X-Frame-Options"
+    - "X-Content-Type-Options"
+    - "Strict-Transport-Security"
+    - "Content-Security-Policy"
+    - "Access-Control-Allow-Origin"
 
