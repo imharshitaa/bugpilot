@@ -1,0 +1,27 @@
+name: BugPilot – XSS Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  xss_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - run: pip install -r requirements.txt
+
+    - name: Run XSS Scan
+      env:
+        ENABLED_MODULE: xss
+      run: python3 main.py
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: xss-report
+        path: reports/output/*.md
