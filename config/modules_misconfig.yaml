@@ -1,0 +1,22 @@
+xss:
+  enabled: false
+sqli:
+  enabled: false
+ssrf:
+  enabled: false
+idor:
+  enabled: false
+open_redirect:
+  enabled: false
+path_traversal:
+  enabled: false
+cors_misconfig:
+  enabled: false
+csrf_weakness:
+  enabled: false
+file_inclusion:
+  enabled: false
+misconfig:
+  enabled: true
+auth_bypass:
+  enabled: false
