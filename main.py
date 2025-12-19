@@ -12,6 +12,7 @@ from core.crawler import Crawler
 from core.recon import Recon
 from core.scanner import Scanner
 from core.validator import Validator
+from core.utils import load_yaml   # ensure this import exists
 
 
 # ------------------------------------------------
@@ -90,7 +91,7 @@ def save_report(rendered_text):
 
 
 # ------------------------------------------------
-# PRINT TO GITHUB ACTIONS
+# PRINT SUMMARY FOR ACTIONS
 # ------------------------------------------------
 def print_summary(findings):
     severities = {"critical": 0, "high": 0, "medium": 0, "low": 0}
@@ -125,7 +126,23 @@ def main():
     crawler = Crawler(utils)
     scanner = Scanner(utils, validator)
 
-    # Load scope
+    # --------------------------------------------
+    # LOAD MODULE CONFIG + APPLY SINGLE MODULE MODE
+    # --------------------------------------------
+    modules = load_yaml("config/modules.yaml")
+
+    ENABLED_MODULE = os.getenv("ENABLED_MODULE", None)
+
+    if ENABLED_MODULE:
+        print(f"[+] Workflow override → Running only: {ENABLED_MODULE}")
+        for module_name in modules.keys():
+            modules[module_name]["enabled"] = (module_name == ENABLED_MODULE)
+
+    scanner.modules = modules  # pass updated modules to scanner
+
+    # --------------------------------------------
+    # LOAD SCOPE
+    # --------------------------------------------
     targets = load_scope()
     print(f"[+] Loaded {len(targets)} targets")
 
@@ -140,12 +157,13 @@ def main():
 
     print(f"\n[+] Total endpoints discovered: {len(all_endpoints)}")
 
-    # Run modules
+    # --------------------------------------------
+    # RUN ALL ENABLED MODULES
+    # --------------------------------------------
     print("\n[+] Running modules...")
     findings = scanner.run_modules(all_endpoints)
     print(f"[+] Modules completed → {len(findings)} findings")
 
-    # Count severity categories
     severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
     for f in findings:
         if f["severity"] in severity_counts:
@@ -175,19 +193,9 @@ def main():
     # Summary for GitHub Actions logs
     print_summary(findings)
 
+
 # ------------------------------------------------
 # ENTRY POINT
 # ------------------------------------------------
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
