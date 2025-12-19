@@ -1,0 +1,27 @@
+name: BugPilot – Open Redirect Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  open_redirect_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - run: pip install -r requirements.txt
+
+    - name: Run Open Redirect Scan
+      env:
+        ENABLED_MODULE: open_redirect
+      run: python3 main.py
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: open-redirect-report
+        path: reports/output/*.md
