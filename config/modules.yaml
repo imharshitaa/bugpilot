@@ -1,34 +1,26 @@
 # modules.yaml
-# This file controls which scanning modules are enabled in the scanner.
-# You can enable or disable any module by setting "enabled: true/false".
+# Controls which core scanning modules are enabled.
 
 modules:
 
   xss:
     enabled: true
-    description: "Reflected XSS detection using safe reflection patterns."
+    description: "Detect reflected input and possible XSS vectors."
 
   sqli:
     enabled: true
-    description: "SQL Injection detection using error-based signatures."
+    description: "Detect error-based SQL Injection signs."
 
   ssrf:
     enabled: true
-    description: "Server-Side Request Forgery indicators (non-exploit)."
+    description: "Detect SSRF patterns through internal URL probing."
 
   auth_bypass:
     enabled: true
-    description: "Detect missing authentication / broken access control."
+    description: "Detect missing/broken authentication / access control."
 
   misconfig:
     enabled: true
-    description: "Detect security misconfigurations in headers & server info."
+    description: "Detect security misconfigurations via headers & server info."
 
-  api_repo:
-    enabled: true
-    description: "API security weaknesses, missing rate-limit, schema issues."
-
-  ai_repo:
-    enabled: true
-    description: "AI/LLM endpoint tests (basic prompt leakage / debug info)."
 
