@@ -1,0 +1,32 @@
+name: BugPilot Scan
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "config/scope.txt"  
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run BugPilot Scan
+      run: python3 main.py
+
+    - name: Upload Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: bugpilot-report
+        path: reports/output/*.md
