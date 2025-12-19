@@ -1,0 +1,10 @@
+# CSRF token field names to detect
+csrf_token
+csrf
+xsrf
+_xsrf
+_token
+authenticity_token
+requesttoken
+csrftoken
+csrftkn
