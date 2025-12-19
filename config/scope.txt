@@ -1,1 +1,8 @@
+# scope.txt
+# Add URLs or endpoints you want BugPilot to scan:
+# One per line.
+
+https://example.com
+https://example.com/login
+https://example.com/dashboard
 
