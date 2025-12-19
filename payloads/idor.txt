@@ -1,0 +1,15 @@
+# IDOR numeric increments for safe testing
+1
+2
+3
+10
+100
+999
+101
+102
+103
+
+
+
+
+
