@@ -23,24 +23,30 @@ Installation and setup steps:
 
 1. Install:
 ```
-git clone
+git clone https://github.com/yourname/bugpilot
+cd bugpilot
 
 ```
 
-2. Running bugpilot:
+2. Create environment:
+
+mac/linux
 ```
-python3 main.py --target 
+python3 -m venv venv
+source venv/bin/activate
+
 ```
 
-3. For custom scope file
+windows
+```
+python -m venv venv
+venv\Scripts\activate
 
 ```
-python3 main.py --scope config/scope.txt
-```
 
-4. Specify modules
+4. Install Dependencies
 ```
-python3 main.py --modules xss,sqli,ssrf
+pip install -r requirements.txt
 ```
 
 ---------------
