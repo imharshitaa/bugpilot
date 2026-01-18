@@ -93,3 +93,15 @@ class Utils:
         if self.verbose:
             print(f"[DEBUG] {message}")
 
+def load_yaml(file_path):
+    """
+    Load a YAML configuration file and return its contents as a dictionary
+    """
+    try:
+        with open(file_path, "r") as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"YAML file not found: {file_path}")
+    except yaml.YAMLError as e:
+        raise ValueError(f"Error parsing YAML file: {e}")
+
