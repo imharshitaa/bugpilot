@@ -1,0 +1,135 @@
+test_cases:
+  xss:
+    attack_method: reflection-and-context-probing
+    custom_scripts:
+      - modules/xss.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - dalfox
+    commands:
+      - "python main.py"
+      - "dalfox url https://target/path?q=test"
+
+  sqli:
+    attack_method: error-signature-and-input-variation
+    custom_scripts:
+      - modules/sqli.py
+    tools:
+      kali:
+        - sqlmap
+      opensource:
+        - sqlmap
+    commands:
+      - "python main.py"
+      - "sqlmap -u 'https://target/item?id=1' --batch"
+
+  ssrf:
+    attack_method: safe-internal-url-injection
+    custom_scripts:
+      - modules/ssrf.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - interactsh-client
+    commands:
+      - "python main.py"
+
+  auth_bypass:
+    attack_method: unauthorized-resource-access-validation
+    custom_scripts:
+      - modules/auth_bypass.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python main.py"
+
+  misconfig:
+    attack_method: security-header-and-policy-audit
+    custom_scripts:
+      - modules/misconfig.py
+    tools:
+      kali:
+        - nikto
+      opensource:
+        - nuclei
+    commands:
+      - "python main.py"
+      - "nikto -h https://target"
+
+  idor:
+    attack_method: identifier-mutation-and-access-check
+    custom_scripts:
+      - modules/idor.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - ffuf
+    commands:
+      - "python main.py"
+
+  open_redirect:
+    attack_method: redirect-parameter-manipulation
+    custom_scripts:
+      - modules/open_redirect.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - gf
+    commands:
+      - "python main.py"
+
+  path_traversal:
+    attack_method: encoded-path-variation-testing
+    custom_scripts:
+      - modules/path_traversal.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python main.py"
+
+  file_inclusion_indicator:
+    attack_method: include-parameter-abuse-detection
+    custom_scripts:
+      - modules/file_inclusion_indicator.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python main.py"
+
+  cors_misconfig:
+    attack_method: origin-header-policy-validation
+    custom_scripts:
+      - modules/cors_misconfig.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - corsy
+    commands:
+      - "python main.py"
+
+  csrf:
+    attack_method: anti-csrf-token-presence-check
+    custom_scripts:
+      - modules/csrf.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python main.py"

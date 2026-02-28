@@ -2,15 +2,10 @@
 validator.py
 -------------
 Validates and cleans findings before reporting.
-- Deduplicates findings
-- Filters obvious false positive cases
-- Normalizes evidence length
 """
 
-class Validator:
-    def __init__(self):
-        pass
 
+class Validator:
     def trim_evidence(self, text):
         return text[:300] + "..." if len(text) > 300 else text
 
@@ -18,11 +13,14 @@ class Validator:
         unique = []
         seen = set()
 
-        for f in findings:
-            key = (f["type"], f["endpoint"], f["payload"])
+        for finding in findings:
+            key = (
+                finding.get("type", "unknown"),
+                finding.get("endpoint", "unknown"),
+                finding.get("payload", "N/A"),
+            )
             if key not in seen:
                 seen.add(key)
-                unique.append(f)
+                unique.append(finding)
 
         return unique
-

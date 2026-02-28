@@ -1,18 +1,16 @@
 """
 utils.py
 ---------
-Utility functions used across the scanner: helper functions
-- HTTP requests handler
-- Config loader
-- Logging system
-- Text extraction helpers
+Utility functions used across the scanner.
 """
 
-import requests
-import yaml
 import json
 import time
 from urllib.parse import urljoin
+
+import requests
+import yaml
+
 
 class Utils:
     def __init__(self, settings_path="config/settings.yaml"):
@@ -28,23 +26,11 @@ class Utils:
 
         self.verbose = self.settings["debug"]["verbose"]
 
-    # ----------------------------- #
-    # YAML Loader
-    # ----------------------------- #
-
-    def load_yaml(path):
-        with open(path, "r") as f:
+    def load_yaml(self, path):
+        with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
-    # ----------------------------- #
-    # HTTP Request Handler
-    # ----------------------------- #
     def http_request(self, url, method="GET", payload=None):
-        """
-        Sends an HTTP request and returns the response.
-        Built with retry logic.
-        """
-
         headers = {"User-Agent": self.user_agent}
 
         if self.auth_enabled and self.auth_header:
@@ -53,55 +39,50 @@ class Utils:
         for attempt in range(self.retries):
             try:
                 if method == "GET":
-                    resp = requests.get(url, headers=headers, timeout=self.timeout, allow_redirects=self.follow_redirects)
+                    return requests.get(
+                        url,
+                        headers=headers,
+                        timeout=self.timeout,
+                        allow_redirects=self.follow_redirects,
+                    )
 
-                elif method == "POST":
-                    resp = requests.post(url, headers=headers, data=payload, timeout=self.timeout, allow_redirects=self.follow_redirects)
+                if method == "POST":
+                    return requests.post(
+                        url,
+                        headers=headers,
+                        data=payload,
+                        timeout=self.timeout,
+                        allow_redirects=self.follow_redirects,
+                    )
 
-                else:
-                    return None
-
-                return resp
-
-            except Exception as e:
+                return None
+            except Exception as exc:
                 if self.verbose:
-                    print(f"[!] Request error ({attempt+1}/{self.retries}): {e}")
+                    print(f"[!] Request error ({attempt + 1}/{self.retries}): {exc}")
                 time.sleep(1)
 
         return None
 
-    # ----------------------------- #
-    # Join URL helper
-    # ----------------------------- #
     def join_url(self, base, path):
         try:
             return urljoin(base, path)
-        except:
+        except Exception:
             return base
 
-    # ----------------------------- #
-    # JSON Writer for scanning data
-    # ----------------------------- #
     def write_json(self, path, data):
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-    # ----------------------------- #
-    # Log Helper
-    # ----------------------------- #
     def log(self, message):
         if self.verbose:
             print(f"[DEBUG] {message}")
 
-def load_yaml(file_path):
-    """
-    Load a YAML configuration file and return its contents as a dictionary
-    """
-    try:
-        with open(file_path, "r") as f:
-            return yaml.safe_load(f)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"YAML file not found: {file_path}")
-    except yaml.YAMLError as e:
-        raise ValueError(f"Error parsing YAML file: {e}")
 
+def load_yaml(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"YAML file not found: {file_path}") from exc
+    except yaml.YAMLError as exc:
+        raise ValueError(f"Error parsing YAML file: {exc}") from exc

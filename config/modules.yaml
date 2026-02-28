@@ -1,0 +1,34 @@
+modules:
+  xss:
+    enabled: true
+    description: Reflected and basic injection-style XSS checks.
+  sqli:
+    enabled: true
+    description: Error-signature SQL injection detection.
+  ssrf:
+    enabled: true
+    description: Safe SSRF indicator checks using internal host payloads.
+  auth_bypass:
+    enabled: true
+    description: Missing authentication and access control checks.
+  misconfig:
+    enabled: true
+    description: Missing security header and baseline hardening checks.
+  idor:
+    enabled: true
+    description: Object-level authorization checks by ID mutation.
+  open_redirect:
+    enabled: true
+    description: Open redirect behavior checks.
+  path_traversal:
+    enabled: true
+    description: Directory traversal indicator checks.
+  file_inclusion_indicator:
+    enabled: true
+    description: File inclusion error-pattern checks.
+  cors_misconfig:
+    enabled: true
+    description: CORS allow-origin misconfiguration checks.
+  csrf:
+    enabled: true
+    description: Missing CSRF token checks in forms.

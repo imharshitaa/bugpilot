@@ -1,91 +1,50 @@
 # BugPilot
 
-**Pentesting Automation Framework Pilot**
+BugPilot is an interactive security testing orchestrator for authorized bug bounty workflows.
 
-- Recon & discovery  
-- Automated vulnerability checks  
-- Payload-based testing  
-- Result validation  
-- Severity classification  
-- Report generation
+It now supports:
+- Target type intake (web app, API, mobile backend, other)
+- Target URL intake at runtime
+- Test-case/module selection at runtime
+- Module execution with structured findings
+- Target response snapshot capture per finding
+- Risk, mitigation, vulnerability point, and lab validation notes
+- Report persistence in `reports/output/<run_id>/`
 
-----------------------------------
+## Project flow
+1. Ask target type
+2. Ask target URLs
+3. Ask which test cases/modules to run
+4. Crawl and discover endpoints
+5. Execute selected modules
+6. Enrich findings with risk + response details
+7. Save Markdown and JSON reports
 
-Features:
-1. Recon automation
-2. Vulnerability scanning
-3. payloads based testing
-4. AI assist
-5. automated reporting
-
-Installation and setup steps:
--
-
-1. Install:
-```
-git clone https://github.com/yourname/bugpilot
-cd bugpilot
-
-```
-
-2. Create environment:
-
-mac/linux
-```
+## Install
+```bash
 python3 -m venv venv
 source venv/bin/activate
-
-```
-
-windows
-```
-python -m venv venv
-venv\Scripts\activate
-
-```
-
-4. Install Dependencies
-```
 pip install -r requirements.txt
 ```
 
----------------
+## Run
+```bash
+python3 main.py
+```
 
-MODULES TRACK:
--
+If you leave targets blank during prompts, BugPilot falls back to `config/scope.txt`.
 
-| Module Name  | File                      | Status     | Description                    |
-| ------------ | ------------------------- | ---------- | ------------------------------ |
-| XSS          | `modules/xss.py`          | WIP  | Reflected & DOM XSS checks     |
-| SQLi         | `modules/sqli.py`         | WIP   | Union-based & error-based SQLi |
-| SSRF         | `modules/ssrf.py`         | WIP     | Basic SSRF detection           |
-| RCE          | `modules/rce.py`          | WIP     | Command execution tests        |
-| IDOR         | `modules/idor.py`         | WIP | Authorization bypass           |
-| API Security | `modules/api_security.py` | WIP     | OWASP API Top 10  of API repo             |
+## Output
+Each run writes to a unique folder:
+- `reports/output/run_<timestamp>/report.md`
+- `reports/output/run_<timestamp>/findings.json`
+- `reports/output/run_<timestamp>/context.json`
+- `reports/output/run_<timestamp>/endpoints.json`
 
+## Config files
+- `config/modules.yaml`: module registry and enabled state
+- `config/test_cases.yaml`: attack method, scripts, tools, and commands metadata
+- `config/payload_rules.yaml`: payload and indicator rules
 
-
-(Use cases: appsec audits, security reviews, pentesting)
-
-
-_hybrid security testing automation framework ## pentesting pilot ## orchestrator_
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## Important
+Use BugPilot only on systems you are explicitly authorized to test.
