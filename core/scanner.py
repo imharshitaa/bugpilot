@@ -1,20 +1,15 @@
-"""Central scan engine: execute modules and enrich findings consistently."""
+"""Central scan engine: execute plugins and enrich findings consistently."""
 
-import importlib
+import copy
 from urllib.parse import urlsplit
 
 import yaml
 
+from core.plugin_manager import PluginManager
+from core.risk_scorer import RiskScorer
 from models.prompts import EXPLOIT_METHODS, MITIGATIONS, REFERENCES
 from models.severity import get_severity
 
-
-RISK_SUMMARY = {
-    "critical": "Immediate exploitation risk with likely high business impact.",
-    "high": "High likelihood of compromise or data exposure.",
-    "medium": "Moderate exploitability; can be chained for larger impact.",
-    "low": "Low direct impact but can weaken overall security posture.",
-}
 
 LAB_VALIDATION_GUIDE = {
     "xss": "Reproduce on a local vulnerable app page and confirm harmless script execution.",
@@ -28,6 +23,13 @@ LAB_VALIDATION_GUIDE = {
     "file_inclusion_indicator": "Use a local vulnerable app and confirm inclusion defenses in place.",
     "cors_misconfig": "Re-test cross-origin requests in staging with a strict allowed origin list.",
     "csrf": "Simulate cross-site form submission in staging and confirm CSRF token validation.",
+    "rate_limit_bruteforce": "Replay bursts in rate-limited staging and verify lockout or throttling.",
+    "jwt_validation_weaknesses": "Verify token signature/claims validation in a controlled auth lab.",
+    "insecure_deserialization": "Replay payload markers in a local vulnerable parser sandbox.",
+    "business_logic_abuse": "Validate workflow guards and price/quantity controls in staging.",
+    "graphql_specific_testing": "Validate GraphQL introspection and resolver auth constraints in staging.",
+    "file_upload_testing": "Use a lab upload endpoint and verify strict content validation.",
+    "xxe": "Replay XML entity probes in a lab parser with external entity access disabled.",
 }
 
 
@@ -35,23 +37,34 @@ class Scanner:
     def __init__(self, utils, validator):
         self.utils = utils
         self.validator = validator
-        self.module_config = self._load_yaml("config/modules.yaml")
+        self.plugin_manager = PluginManager()
         self.payload_rules = self._load_yaml("config/payload_rules.yaml")
+        self.risk_scorer = RiskScorer()
         scanner_cfg = self.utils.settings.get("scanner", {})
         self.max_endpoints_per_module = scanner_cfg.get("max_endpoints_per_module", 15)
+        self.fast_mode = bool(scanner_cfg.get("fast_mode", True))
+        self.max_payloads_per_test = int(scanner_cfg.get("max_payloads_per_test", 2))
         self.skip_static_extensions = tuple(
             ext.lower() for ext in scanner_cfg.get("skip_static_extensions", [])
         )
         self._snapshot_cache = {}
+        self.runtime_payload_rules = self._build_runtime_payload_rules()
 
     def _load_yaml(self, path):
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def available_modules(self):
-        return self.module_config.get("modules", {})
+        plugins = self.plugin_manager.list_plugins()
+        return {
+            name: {
+                "enabled": meta.get("enabled", False),
+                "description": meta.get("description", ""),
+            }
+            for name, meta in plugins.items()
+        }
 
-    def run_modules(self, endpoints, selected_modules=None):
+    def run_modules(self, endpoints, selected_modules=None, progress_callback=None):
         findings = []
         modules = self.available_modules()
 
@@ -66,17 +79,59 @@ class Scanner:
                 continue
 
             try:
-                module = importlib.import_module(f"modules.{module_name}")
+                if progress_callback:
+                    progress_callback(
+                        "start",
+                        {
+                            "module": module_name,
+                            "endpoints": len(endpoints),
+                            "fast_mode": self.fast_mode,
+                        },
+                    )
+                self.utils.set_active_module(module_name)
+                module = self.plugin_manager.load_plugin(module_name)
                 module_endpoints = self._prepare_endpoints(endpoints)
-                module_findings = module.run(module_endpoints, self.utils, self.payload_rules)
+                module_findings = module.run(module_endpoints, self.utils, self.runtime_payload_rules)
             except Exception as exc:
                 self.utils.log(f"Module {module_name} failed: {exc}")
+                if progress_callback:
+                    progress_callback("error", {"module": module_name, "error": str(exc)})
                 continue
+            finally:
+                if self.utils.active_module == module_name:
+                    self.utils.set_active_module(None)
 
             for finding in module_findings:
                 findings.append(self._enrich_finding(finding, module_name))
 
+            if progress_callback:
+                progress_callback(
+                    "done",
+                    {
+                        "module": module_name,
+                        "findings": len(module_findings),
+                        "stats": self.utils.get_module_stats(module_name),
+                        "tested_endpoints": len(module_endpoints),
+                    },
+                )
+
         return self.validator.deduplicate(findings)
+
+    def _build_runtime_payload_rules(self):
+        if not self.fast_mode:
+            return self.payload_rules
+
+        rules = copy.deepcopy(self.payload_rules)
+        shrinkable_list_keys = {"payloads", "payload_markers", "error_signatures", "match_indicators"}
+        for _, value in rules.items():
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if key in shrinkable_list_keys and isinstance(item, list):
+                        value[key] = item[: self.max_payloads_per_test]
+                    if key == "tamper_params" and isinstance(item, dict):
+                        entries = list(item.items())[: self.max_payloads_per_test]
+                        value[key] = dict(entries)
+        return rules
 
     def _prepare_endpoints(self, endpoints):
         filtered = []
@@ -99,6 +154,8 @@ class Scanner:
             return "csrf"
         if slug == "file_inclusion":
             return "file_inclusion_indicator"
+        if slug == "graphql":
+            return "graphql_specific_testing"
         return slug
 
     def _response_snapshot(self, url):
@@ -148,7 +205,7 @@ class Scanner:
         finding["normalized_type"] = vuln_type
         finding["module"] = module_name
         finding["severity"] = severity
-        finding["risk"] = RISK_SUMMARY.get(severity, RISK_SUMMARY["low"])
+        finding.update(self.risk_scorer.score(finding))
         finding["vulnerability_point"] = finding.get("endpoint", "unknown")
         finding["target_response"] = self._response_snapshot(
             finding.get("endpoint", "")

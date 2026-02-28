@@ -5,6 +5,7 @@ Interactive workflow to collect scan intent and selected test cases.
 """
 
 from core.utils import load_yaml
+from core.plugin_manager import PluginManager
 
 try:
     from rich.console import Console
@@ -30,10 +31,10 @@ class Workflow:
     def __init__(self, module_config_path="config/modules.yaml", test_case_path="config/test_cases.yaml"):
         self.module_config = load_yaml(module_config_path)
         self.test_case_catalog = load_yaml(test_case_path)
+        self.plugin_manager = PluginManager(module_config_path=module_config_path)
 
     def _enabled_modules(self):
-        modules = self.module_config.get("modules", {})
-        return [name for name, meta in modules.items() if meta.get("enabled", False)]
+        return self.plugin_manager.enabled_plugin_names()
 
     def ask_target_type(self):
         if RICH_AVAILABLE:
@@ -65,7 +66,7 @@ class Workflow:
 
     def ask_test_cases(self):
         enabled = self._enabled_modules()
-        modules = self.module_config.get("modules", {})
+        modules = self.plugin_manager.plugin_descriptions()
 
         if RICH_AVAILABLE:
             table = Table(title="Available Test Cases / Modules", style="green")
@@ -73,13 +74,13 @@ class Workflow:
             table.add_column("Module", style="cyan")
             table.add_column("Description", style="green")
             for idx, module in enumerate(enabled, start=1):
-                desc = modules[module].get("description", "")
+                desc = modules.get(module, "")
                 table.add_row(str(idx), module, desc)
             console.print(table)
         else:
             print("\nAvailable test cases/modules:")
             for idx, module in enumerate(enabled, start=1):
-                desc = modules[module].get("description", "")
+                desc = modules.get(module, "")
                 print(f"{idx}. {module} - {desc}")
 
         raw = input(
@@ -118,6 +119,18 @@ class Workflow:
 
         return plan
 
+    def ask_output_formats(self):
+        raw = input(
+            "Output formats (comma-separated: markdown,json,sarif) [markdown,json]: "
+        ).strip()
+        if not raw:
+            return ["markdown", "json"]
+
+        allowed = {"markdown", "json", "sarif"}
+        formats = [fmt.strip().lower() for fmt in raw.split(",") if fmt.strip()]
+        formats = [fmt for fmt in formats if fmt in allowed]
+        return formats or ["markdown", "json"]
+
     def collect(self, fallback_targets=None):
         target_type = self.ask_target_type()
         targets = self.ask_targets(fallback_targets=fallback_targets)
@@ -126,6 +139,7 @@ class Workflow:
         lab_environment = input(
             "Enter lab validation environment (name or URL) for exploitation proof [local-lab]: "
         ).strip() or "local-lab"
+        output_formats = self.ask_output_formats()
 
         return {
             "target_type": target_type,
@@ -134,4 +148,5 @@ class Workflow:
             "test_plan": test_plan,
             "exploitation_policy": "Detect on target, validate exploitability only in controlled lab",
             "lab_environment": lab_environment,
+            "output_formats": output_formats,
         }
