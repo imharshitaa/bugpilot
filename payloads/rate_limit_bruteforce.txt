@@ -1,0 +1,3 @@
+# Rate limiting/bruteforce test notes
+burst_requests=8
+expected_defense=429_or_lockout

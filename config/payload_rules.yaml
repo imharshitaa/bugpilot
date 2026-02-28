@@ -46,3 +46,50 @@ misconfig:
     - "Content-Security-Policy"
     - "Access-Control-Allow-Origin"
 
+rate_limit_bruteforce:
+  burst_count: 8
+  success_statuses: [200, 201, 202, 204]
+
+jwt_validation_weaknesses:
+  indicators:
+    - "eyJ"
+    - "jwt"
+  weak_algorithms:
+    - "none"
+
+insecure_deserialization:
+  payload_markers:
+    - "O:8:\"stdClass\":0:{}"
+    - "rO0ABXQ="
+    - "gASV"
+  error_signatures:
+    - "unserialize()"
+    - "invalidclass"
+    - "pickle"
+    - "java.io"
+
+business_logic_abuse:
+  tamper_params:
+    price: "-1"
+    amount: "0"
+    quantity: "-5"
+  success_statuses: [200, 201, 202, 204]
+
+graphql_specific_testing:
+  introspection_query: '{"query":"{__schema{types{name}}}"}'
+  indicators:
+    - "__schema"
+    - "graphql"
+
+file_upload_testing:
+  indicators:
+    - "multipart/form-data"
+    - "upload"
+    - "file"
+
+xxe:
+  payload: '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>'
+  error_signatures:
+    - "xml parser"
+    - "external entity"
+    - "doctype is disallowed"

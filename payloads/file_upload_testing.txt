@@ -1,0 +1,3 @@
+# Upload checks
+multipart/form-data
+unrestricted_accept

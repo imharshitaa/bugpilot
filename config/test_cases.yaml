@@ -142,3 +142,94 @@ test_cases:
     commands:
       - "python modules/csrf.py"
       - "nuclei -u 'https://target' -tags csrf"
+
+  rate_limit_bruteforce:
+    attack_method: repeated-request-throttle-validation
+    custom_scripts:
+      - modules/rate_limit_bruteforce.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - ffuf
+    commands:
+      - "python modules/rate_limit_bruteforce.py"
+      - "ffuf -w /usr/share/seclists/Discovery/Web-Content/common.txt -u 'https://target/login?user=test&pass=FUZZ' -rate 50"
+
+  jwt_validation_weaknesses:
+    attack_method: token-structure-and-algorithm-review
+    custom_scripts:
+      - modules/jwt_validation_weaknesses.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - jwt-tool
+    commands:
+      - "python modules/jwt_validation_weaknesses.py"
+      - "jwt-tool <token> -T"
+
+  insecure_deserialization:
+    attack_method: serialized-input-error-signature-probing
+    custom_scripts:
+      - modules/insecure_deserialization.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - ysoserial
+    commands:
+      - "python modules/insecure_deserialization.py"
+      - "java -jar ysoserial.jar URLDNS https://callback.lab"
+
+  business_logic_abuse:
+    attack_method: transactional-parameter-tampering
+    custom_scripts:
+      - modules/business_logic_abuse.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python modules/business_logic_abuse.py"
+      - "nuclei -u 'https://target' -tags workflow,business-logic"
+
+  graphql_specific_testing:
+    attack_method: graphql-introspection-and-access-check
+    custom_scripts:
+      - modules/graphql_specific_testing.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - graphql-cop
+    commands:
+      - "python modules/graphql_specific_testing.py"
+      - "graphql-cop -t https://target/graphql"
+
+  file_upload_testing:
+    attack_method: upload-handler-and-content-validation-check
+    custom_scripts:
+      - modules/file_upload_testing.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python modules/file_upload_testing.py"
+      - "nuclei -u 'https://target' -tags upload,file"
+
+  xxe:
+    attack_method: xml-parser-entity-behavior-check
+    custom_scripts:
+      - modules/xxe.py
+    tools:
+      kali:
+        - burpsuite
+      opensource:
+        - nuclei
+    commands:
+      - "python modules/xxe.py"
+      - "nuclei -u 'https://target' -tags xxe,xml"

@@ -12,6 +12,13 @@ MITIGATIONS = {
     "file_inclusion_indicator": "Disallow user-controlled include paths and harden file resolution logic.",
     "cors_misconfig": "Avoid wildcard origins and validate trusted origins explicitly.",
     "csrf": "Use anti-CSRF tokens and same-site cookie protections for state-changing actions.",
+    "rate_limit_bruteforce": "Apply per-account/IP throttling, lockouts, and adaptive rate controls.",
+    "jwt_validation_weaknesses": "Enforce strong JWT signatures, algorithm pinning, and strict claim verification.",
+    "insecure_deserialization": "Avoid unsafe object deserialization for untrusted input and use strict allowlists.",
+    "business_logic_abuse": "Enforce server-side workflow and value integrity constraints on all transactions.",
+    "graphql_specific_testing": "Disable introspection in production and enforce resolver-level authorization.",
+    "file_upload_testing": "Validate MIME/content, enforce extension allowlists, and isolate uploaded files.",
+    "xxe": "Disable external entities/DTDs in XML parsers and use hardened parser configuration.",
 }
 
 EXPLOIT_METHODS = {
@@ -59,6 +66,34 @@ EXPLOIT_METHODS = {
         "Inspect state-changing forms for anti-CSRF token enforcement.",
         "Validate SameSite and token-based anti-forgery controls."
     ],
+    "rate_limit_bruteforce": [
+        "Send controlled burst traffic and observe throttling or lockout behavior.",
+        "Verify repeated auth attempts trigger defensive controls."
+    ],
+    "jwt_validation_weaknesses": [
+        "Inspect JWT headers/claims for weak algorithm acceptance.",
+        "Verify token verification fails for tampered signatures."
+    ],
+    "insecure_deserialization": [
+        "Replay serialization markers and inspect parser error responses.",
+        "Verify untrusted serialized payloads are rejected safely."
+    ],
+    "business_logic_abuse": [
+        "Tamper business parameters (price/quantity/order sequence) and inspect acceptance.",
+        "Verify transaction workflow constraints are enforced server-side."
+    ],
+    "graphql_specific_testing": [
+        "Probe GraphQL endpoint exposure and introspection behavior.",
+        "Check resolver access controls for sensitive fields."
+    ],
+    "file_upload_testing": [
+        "Inspect upload handlers for missing file type/extension constraints.",
+        "Verify executable or malformed uploads are rejected."
+    ],
+    "xxe": [
+        "Replay safe XXE parser probes and inspect parser error indicators.",
+        "Validate XML parser is configured to reject external entities."
+    ],
 }
 
 REFERENCES = {
@@ -73,4 +108,11 @@ REFERENCES = {
     "file_inclusion_indicator": "https://owasp.org/www-community/attacks/Path_Traversal",
     "cors_misconfig": "https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny",
     "csrf": "https://owasp.org/www-community/attacks/csrf",
+    "rate_limit_bruteforce": "https://owasp.org/www-community/controls/Blocking_Brute_Force_Attacks",
+    "jwt_validation_weaknesses": "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Testing_JSON_Web_Tokens",
+    "insecure_deserialization": "https://owasp.org/www-project-top-ten/2017/A8_2017-Insecure_Deserialization",
+    "business_logic_abuse": "https://owasp.org/www-community/vulnerabilities/Business_logic_vulnerability",
+    "graphql_specific_testing": "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html",
+    "file_upload_testing": "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+    "xxe": "https://owasp.org/www-community/vulnerabilities/XML_External_Entity_(XXE)_Processing",
 }

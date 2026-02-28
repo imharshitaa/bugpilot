@@ -32,3 +32,24 @@ modules:
   csrf:
     enabled: true
     description: Missing CSRF token checks in forms.
+  rate_limit_bruteforce:
+    enabled: true
+    description: Rate limiting and brute-force resistance checks.
+  jwt_validation_weaknesses:
+    enabled: true
+    description: Weak JWT validation and insecure token handling checks.
+  insecure_deserialization:
+    enabled: true
+    description: Insecure deserialization error-pattern checks.
+  business_logic_abuse:
+    enabled: true
+    description: Business workflow and tampering abuse indicators.
+  graphql_specific_testing:
+    enabled: true
+    description: GraphQL introspection and endpoint exposure checks.
+  file_upload_testing:
+    enabled: true
+    description: File upload validation and restriction weakness checks.
+  xxe:
+    enabled: true
+    description: XML External Entity parsing indicator checks.

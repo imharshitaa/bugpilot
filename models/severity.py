@@ -12,6 +12,13 @@ SEVERITY_LEVEL = {
     "file_inclusion_indicator": "high",
     "cors_misconfig": "medium",
     "csrf": "medium",
+    "rate_limit_bruteforce": "medium",
+    "jwt_validation_weaknesses": "high",
+    "insecure_deserialization": "high",
+    "business_logic_abuse": "medium",
+    "graphql_specific_testing": "medium",
+    "file_upload_testing": "high",
+    "xxe": "high",
 }
 
 
