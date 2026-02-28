@@ -1,167 +1,181 @@
 # BugPilot Developer Reference
 
-## 1) What This Repository Does
-BugPilot is an interactive security testing orchestrator for authorized web/API targets.
+## 1) Overview
+BugPilot is a security testing orchestrator for authorized web/API targets.
 
-At runtime, it:
-1. Collects target + module selections from prompts.
-2. Performs lightweight recon.
-3. Crawls endpoints.
-4. Runs selected vulnerability modules.
-5. Enriches findings with severity/risk/mitigation metadata.
-6. Writes run artifacts under `reports/output/run_<timestamp>/`.
-
----
-
-## 2) High-Level Execution Flow
-
-`main.py` is the entrypoint and wires everything together.
-
-Flow:
-1. Initialize core services (`Utils`, `Validator`, `Crawler`, `Scanner`, `Recon`, `Reporter`, `Workflow`).
-2. Load fallback targets from `config/scope.txt`.
-3. `Workflow.collect()` asks:
-   - target type
-   - target URLs
-   - modules to run
-   - lab environment
-4. For each target:
-   - `Recon.analyze_headers()`
-   - `Crawler.crawl()`
-5. Convert discovered URLs to `Endpoint` objects.
-6. `Scanner.run_modules()` dynamically imports and runs each selected module.
-7. `Reporter.write()` writes markdown + JSON output files.
-8. Summary is printed to terminal.
+It supports:
+- Interactive and headless (CI/CD) scanning
+- Plugin-based module execution
+- Risk scoring per finding
+- Output formats: Markdown, JSON, SARIF
+- Isolated lab validation (native HTTP and optional Docker transport)
+- Replayable scan sessions
+- Differential scanning (baseline vs current)
 
 ---
 
-## 3) Directory Structure and Purpose
+## 2) Execution Modes
 
-### `config/`
-- `modules.yaml`
-  - Module registry, `enabled` toggle, and module descriptions.
-  - Controls what appears in module selection prompt.
-- `test_cases.yaml`
-  - Per-category attack method metadata.
-  - Lists custom scripts, tool names, and example commands.
-  - Used by `Workflow.build_test_plan()` for report context.
-- `payload_rules.yaml`
-  - Shared payloads/signatures consumed by modules (currently xss/sqli/ssrf/auth_bypass/misconfig sections).
-- `settings.yaml`
-  - HTTP behavior, auth header support, scanner/crawler settings, report settings, debug flags.
-- `scope.txt`
-  - Fallback target list when user leaves target prompt blank.
+### Interactive mode
+```bash
+python3 main.py
+```
+
+### Headless CI/CD mode
+```bash
+python3 main.py --headless \
+  --targets https://target \
+  --modules all \
+  --formats json,sarif \
+  --validate-findings none
+```
+
+Useful headless flags:
+- `--fail-on-findings`
+- `--baseline-findings <path_to_findings.json>`
+- `--replay-session <path_to_session.json>`
+- `--lab-auto-docker`
+
+---
+
+## 3) High-Level Runtime Flow
+
+1. Parse CLI args (`main.py`) and decide interactive vs headless mode.
+2. Build run context from:
+   - user prompts (`core/workflow.py`) OR
+   - CLI flags OR
+   - replay session file.
+3. Run recon (`core/recon.py`) + crawl (`core/crawler.py`).
+4. Convert URLs to `Endpoint` models (`models/endpoint_class.py`).
+5. Execute selected plugins/modules via `core/scanner.py` + `core/plugin_manager.py`.
+6. Enrich findings with:
+   - normalized type
+   - severity
+   - risk score/rating/text
+   - mitigation/reference/lab guidance
+   - target response snapshot
+7. Optional lab validation (`core/lab_validator.py`).
+8. Optional differential compare (`core/diff_scan.py`).
+9. Write outputs (`core/reporter.py`) in selected formats.
+
+---
+
+## 4) Architecture and File Roles
+
+### `main.py`
+Primary orchestrator.
+- Handles CLI args (`--headless`, `--formats`, `--baseline-findings`, etc.)
+- Drives workflow, scan execution, optional validation/diff
+- Prints terminal UI and output artifact paths
 
 ### `core/`
 - `workflow.py`
-  - Interactive input pipeline.
-  - Builds `run_context` object with selected modules and test plan metadata.
-- `utils.py`
-  - Shared helpers:
-    - YAML loading
-    - HTTP requests/retries/TLS verify handling
-    - query param URL merging (`add_query_params`)
-    - JSON writer
-- `recon.py`
-  - Header-based reconnaissance per target.
-- `crawler.py`
-  - Safe same-host link discovery and depth-limited crawling.
+  - Interactive prompts for target/module/lab/output format selection.
 - `scanner.py`
-  - Dynamic module loader (`importlib.import_module("modules.<name>")`).
-  - Runs modules, enriches findings (normalized type, severity, risk, mitigation, references, lab validation, response snapshot), and deduplicates via validator.
-- `validator.py`
-  - Finding deduplication and evidence trimming helper.
+  - Core scan engine.
+  - Uses plugin manager to load modules.
+  - Applies endpoint filtering and enrichment.
+- `plugin_manager.py`
+  - Loads builtin plugins from `modules/` and optional file-based plugins from `config/plugins.yaml`.
+- `risk_scorer.py`
+  - Computes `risk_score` (0-100), `risk_rating`, and risk narrative.
+- `lab_validator.py`
+  - Safe replay validation in isolated environment.
+  - Supports optional Docker-backed request transport.
+- `diff_scan.py`
+  - Compares baseline and current findings (new/resolved/persisting).
 - `reporter.py`
-  - Creates run folder and writes:
-    - `report.md`
-    - `findings.json`
-    - `context.json`
-    - `endpoints.json`
+  - Writes Markdown/JSON/SARIF and session artifact.
+- `crawler.py`
+  - Same-host crawling with depth/link caps.
+- `recon.py`
+  - Basic header reconnaissance.
+- `utils.py`
+  - HTTP client, request caching, URL param merging, YAML/JSON helpers.
+- `validator.py`
+  - Deduplication and evidence trimming helpers.
 
 ### `models/`
-- `endpoint_class.py`
-  - Endpoint model (`url`, `method`, `params`) and serializer.
-- `severity.py`
-  - Default severity mapping per vulnerability category.
-- `prompts.py`
-  - Mitigations, safe exploitation-method notes, references per category.
-- `false_positive.py`
-  - Simple text pattern filter for likely false positives.
+- `endpoint_class.py` - endpoint representation + serialization.
+- `severity.py` - default severity map by vulnerability category.
+- `prompts.py` - mitigation, exploitation-method notes, references.
+- `false_positive.py` - simple false-positive text filters.
 
 ### `modules/`
-Each file exposes `run(endpoints, utils, payload_rules) -> list[dict]`.
+Each module exposes:
+```python
+run(endpoints, utils, payload_rules) -> list[dict]
+```
 
-- `xss.py`
-- `sqli.py`
-- `ssrf.py`
-- `auth_bypass.py`
-- `misconfig.py`
-- `idor.py`
-- `open_redirect.py`
-- `path_traversal.py`
-- `file_inclusion_indicator.py`
-- `cors_misconfig.py`
-- `csrf.py`
+Current builtins include:
+- xss, sqli, ssrf, auth_bypass, misconfig, idor, open_redirect
+- path_traversal, file_inclusion_indicator, cors_misconfig, csrf
+- rate_limit_bruteforce
+- jwt_validation_weaknesses
+- insecure_deserialization
+- business_logic_abuse
+- graphql_specific_testing
+- file_upload_testing
+- xxe
 
-Module outputs are normalized/enriched in `core/scanner.py` before reporting.
+### `config/`
+- `modules.yaml` - builtin module registry + enabled states.
+- `plugins.yaml` - external/file-based plugin registry.
+- `test_cases.yaml` - attack methods, scripts, tools, commands metadata.
+- `payload_rules.yaml` - shared payload/signature rules.
+- `settings.yaml` - HTTP/scanner/crawler/report/CI/lab behavior.
+- `scope.txt` - fallback targets.
 
-### `reports/`
-- Runtime outputs go to `reports/output/run_<timestamp>/...`
-- `reports/target_report.md` is a legacy configured path and not the primary current output path.
+### `payloads/`
+Reference payload text files per category (developer reference artifacts).
 
-### `payloads/`, `data/`, `sample/`
-- `payloads/*.txt`: reference payload lists (not directly wired into active runtime logic).
-- `data/`: static sample files.
-- `sample/dvwa.md`: example content/reference.
-
----
-
-## 4) File Connection Map (Who Calls What)
-
-Entrypoint chain:
-- `main.py`
-  - imports from `core/*` and `models/endpoint_class.py`
-  - calls `Workflow.collect()`
-  - calls `Recon.analyze_headers()`
-  - calls `Crawler.crawl()`
-  - calls `Scanner.run_modules()`
-  - calls `Reporter.write()`
-
-Scanner chain:
-- `core/scanner.py`
-  - reads `config/modules.yaml`
-  - reads `config/payload_rules.yaml`
-  - dynamically imports `modules/<module_name>.py`
-  - enriches using `models/severity.py` + `models/prompts.py`
-  - deduplicates via `core/validator.py`
-
-Workflow chain:
-- `core/workflow.py`
-  - reads `config/modules.yaml` and `config/test_cases.yaml`
-  - builds report-facing test plan metadata
-
-HTTP behavior chain:
-- All network calls go through `core/utils.py::http_request()`
-  - used by recon, crawler, and modules
-  - controlled by `config/settings.yaml`
+### `reports/output/run_<timestamp>/`
+Per-run output directory.
 
 ---
 
-## 5) Finding Object Contract
+## 5) Plugin Architecture
 
-Modules should return dictionaries with at least:
+### Builtin plugins
+- Declared in `config/modules.yaml`.
+- Implemented as Python modules under `modules/`.
+
+### External plugins
+- Declared in `config/plugins.yaml`.
+- Currently supported source: `python_file`.
+
+Example plugin entry:
+```yaml
+plugins:
+  custom_module:
+    enabled: true
+    description: Custom validation
+    source: python_file
+    path: plugins/custom_module.py
+```
+
+Plugin contract:
+- Must provide `run(endpoints, utils, payload_rules)`.
+- Return list of finding dictionaries.
+
+---
+
+## 6) Finding Contract and Enrichment
+
+### Module output (minimum recommended)
 - `type`
 - `endpoint`
-- `severity` (optional; scanner can default it)
 - `payload`
 - `evidence`
 - `cwe`
-- `mitigation` (optional; scanner can default it)
-- `references` (optional; scanner can default it)
+- `severity` (optional)
 
-Scanner adds:
+### Scanner enrichment adds
 - `normalized_type`
 - `module`
+- `severity` (if missing)
+- `risk_score`
+- `risk_rating`
 - `risk`
 - `vulnerability_point`
 - `target_response`
@@ -169,49 +183,131 @@ Scanner adds:
 
 ---
 
-## 6) How to Add a New Test Category
+## 7) Risk Scoring
 
-1. Create new module file in `modules/<new_category>.py` with `run(...)`.
-2. Add it in `config/modules.yaml` with `enabled` + description.
-3. Add metadata in `config/test_cases.yaml` (`attack_method`, `custom_scripts`, `tools`, `commands`).
-4. Add severity in `models/severity.py`.
-5. Add mitigation/method/reference entries in `models/prompts.py`.
-6. If payload/signature driven, add rules in `config/payload_rules.yaml`.
-7. Run `python3 main.py`, select the module, verify output in `reports/output/...`.
+Implemented in `core/risk_scorer.py`.
 
----
+Inputs:
+- base severity
+- confidence (if provided)
+- evidence length
+- endpoint keyword boost (auth/admin/payment-like)
 
-## 7) Runtime Artifacts You Should Check While Developing
-
-Per run folder:
-- `report.md`: human-readable report.
-- `findings.json`: raw enriched findings.
-- `context.json`: run context + selected module plan.
-- `endpoints.json`: scanned endpoint inventory.
-
-If module behavior looks wrong, inspect `findings.json` first, then trace:
-1. module output
-2. scanner enrichment
-3. reporter rendering
+Outputs:
+- `risk_score` (0-100)
+- `risk_rating` (`low|medium|high|critical`)
+- risk explanation text
 
 ---
 
-## 8) Practical Dev Notes
+## 8) Output Formats
 
-- Only `config/modules.yaml` controls active module availability.
-- `config/test_cases.yaml` commands are informational metadata for the report/test plan; scanner execution is done via Python module imports.
-- Crawler is same-host only by design in `core/crawler.py`.
-- TLS verification is controlled by `config/settings.yaml -> http.verify_tls`.
-- Keep module `type` names consistent with keys in `models/severity.py` and `models/prompts.py` for clean enrichment.
+Selectable with:
+- interactive prompt: output formats
+- headless: `--formats markdown,json,sarif`
+
+Artifacts (depending on selected formats/features):
+- `report.md`
+- `findings.json`
+- `results.sarif`
+- `context.json`
+- `endpoints.json`
+- `session.json`
+- `lab_validation_results.json` (if lab validation run)
+- `differential_scan.json` (if baseline comparison run)
 
 ---
 
-## 9) Quick Start
+## 9) Lab Validation
 
+Lab validation is safe replay only; it is not destructive exploitation.
+
+Trigger:
+- interactive: prompt after findings table
+- headless: `--validate-findings all|1,2,3|none`
+
+Transport options:
+- default native HTTP requests
+- Docker-backed (`--lab-auto-docker`) via ephemeral curl container
+
+Results include:
+- status (`validated` or `inconclusive`)
+- source target, lab target
+- proof text
+- evidence preview
+- transport used
+
+---
+
+## 10) Replayable Sessions
+
+Each run writes `session.json` containing reusable scan context.
+
+Replay command:
+```bash
+python3 main.py --headless --replay-session reports/output/run_<timestamp>/session.json
+```
+
+Replay restores:
+- target type
+- targets
+- selected modules
+- lab environment
+- output formats
+
+---
+
+## 11) Differential Scanning
+
+Provide baseline findings:
+```bash
+python3 main.py --headless \
+  --targets https://target \
+  --modules all \
+  --formats json \
+  --baseline-findings /path/to/baseline/findings.json
+```
+
+Output:
+- `differential_scan.json` with counts and lists:
+  - `new_findings`
+  - `resolved_findings`
+  - `persisting_findings`
+
+---
+
+## 12) Adding a New Category (Developer Checklist)
+
+1. Add module file under `modules/<name>.py` with `run(...)`.
+2. Add entry to `config/modules.yaml`.
+3. Add test metadata to `config/test_cases.yaml`.
+4. Add payload/signature rules to `config/payload_rules.yaml` if needed.
+5. Add severity to `models/severity.py`.
+6. Add mitigation/method/reference in `models/prompts.py`.
+7. Run headless smoke test and verify output artifacts.
+
+---
+
+## 13) Quick Dev Commands
+
+Setup:
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
+
+Interactive run:
+```bash
 python3 main.py
 ```
 
+Headless + SARIF:
+```bash
+python3 main.py --headless --targets https://example.com --modules all --formats json,sarif
+```
+
+Compile check:
+```bash
+PYTHONPYCACHEPREFIX=.pycache python3 -m py_compile main.py core/*.py models/*.py modules/*.py
+```

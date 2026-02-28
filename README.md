@@ -34,12 +34,31 @@ python3 main.py
 
 If you leave targets blank during prompts, BugPilot falls back to `config/scope.txt`.
 
+## Headless CI/CD mode
+```bash
+python3 main.py --headless \
+  --targets https://target \
+  --modules all \
+  --formats json,sarif \
+  --validate-findings none
+```
+
+Useful flags:
+- `--fail-on-findings`: exit non-zero when findings exist.
+- `--baseline-findings <path>`: differential scan against a baseline findings JSON.
+- `--replay-session <path>`: replay previous run context from `session.json`.
+- `--lab-auto-docker`: run isolated lab validation requests via Docker curl container when available.
+
 ## Output
 Each run writes to a unique folder:
 - `reports/output/run_<timestamp>/report.md`
 - `reports/output/run_<timestamp>/findings.json`
 - `reports/output/run_<timestamp>/context.json`
 - `reports/output/run_<timestamp>/endpoints.json`
+- `reports/output/run_<timestamp>/session.json`
+- `reports/output/run_<timestamp>/results.sarif` (if `sarif` format selected)
+- `reports/output/run_<timestamp>/lab_validation_results.json` (if lab validation executed)
+- `reports/output/run_<timestamp>/differential_scan.json` (if baseline provided)
 
 ## Config files
 - `config/modules.yaml`: module registry and enabled state

@@ -5,6 +5,7 @@ import time
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
+from requests.exceptions import RequestException, Timeout
 import yaml
 
 
@@ -25,6 +26,15 @@ class Utils:
         self.auth_header = self.settings["auth"]["header"]
 
         self.verbose = self.settings["debug"]["verbose"]
+        scanner_cfg = self.settings.get("scanner", {})
+        self.runtime_log_max_per_module = int(
+            scanner_cfg.get("runtime_log_max_per_module", 20)
+        )
+        self.active_module = None
+        self.module_stats = {}
+        self.request_event_callback = None
+        self._request_log_counts = {}
+        self._session = requests.Session()
 
     def load_yaml(self, path):
         with open(path, "r", encoding="utf-8") as f:
@@ -50,19 +60,21 @@ class Utils:
         for attempt in range(max(self.retries, 1)):
             try:
                 if method == "GET":
-                    response = requests.get(
+                    response = self._session.get(
                         url,
                         headers=headers,
                         timeout=self.timeout,
                         allow_redirects=self.follow_redirects,
                         verify=self.verify_tls,
                     )
+                    self._record_response_stats(response.status_code)
+                    self._emit_request_event(url, method, status_code=response.status_code)
                     if cache_key:
                         self._response_cache[cache_key] = response
                     return response
 
                 if method == "POST":
-                    return requests.post(
+                    response = self._session.post(
                         url,
                         headers=headers,
                         data=payload,
@@ -70,14 +82,109 @@ class Utils:
                         allow_redirects=self.follow_redirects,
                         verify=self.verify_tls,
                     )
+                    self._record_response_stats(response.status_code)
+                    self._emit_request_event(url, method, status_code=response.status_code)
+                    return response
 
                 return None
+            except Timeout as exc:
+                self._record_error_stats("timeout")
+                if attempt == max(self.retries, 1) - 1:
+                    self._emit_request_event(url, method, outcome="timeout")
+                if self.verbose:
+                    print(f"[!] Request timeout ({attempt + 1}/{self.retries}): {exc}")
+                time.sleep(self.retry_sleep_seconds)
+            except RequestException as exc:
+                self._record_error_stats("request_error")
+                if attempt == max(self.retries, 1) - 1:
+                    self._emit_request_event(url, method, outcome="error")
+                if self.verbose:
+                    print(f"[!] Request error ({attempt + 1}/{self.retries}): {exc}")
+                time.sleep(self.retry_sleep_seconds)
             except Exception as exc:
+                self._record_error_stats("unknown_error")
+                if attempt == max(self.retries, 1) - 1:
+                    self._emit_request_event(url, method, outcome="error")
                 if self.verbose:
                     print(f"[!] Request error ({attempt + 1}/{self.retries}): {exc}")
                 time.sleep(self.retry_sleep_seconds)
 
         return None
+
+    def set_active_module(self, module_name):
+        self.active_module = module_name
+        if module_name is None:
+            return
+        self._request_log_counts.setdefault(module_name, 0)
+        self.module_stats.setdefault(
+            module_name,
+            {
+                "requests": 0,
+                "responses": 0,
+                "blocked": 0,
+                "timeouts": 0,
+                "errors": 0,
+                "server_errors": 0,
+            },
+        )
+
+    def get_module_stats(self, module_name):
+        return dict(self.module_stats.get(module_name, {}))
+
+    def get_all_module_stats(self):
+        return {name: dict(stats) for name, stats in self.module_stats.items()}
+
+    def set_request_event_callback(self, callback):
+        self.request_event_callback = callback
+
+    def _record_response_stats(self, status_code):
+        if not self.active_module:
+            return
+        stats = self.module_stats.setdefault(
+            self.active_module,
+            {"requests": 0, "responses": 0, "blocked": 0, "timeouts": 0, "errors": 0, "server_errors": 0},
+        )
+        stats["requests"] += 1
+        stats["responses"] += 1
+        if status_code in (401, 403, 406, 429):
+            stats["blocked"] += 1
+        if status_code >= 500:
+            stats["server_errors"] += 1
+
+    def _record_error_stats(self, kind):
+        if not self.active_module:
+            return
+        stats = self.module_stats.setdefault(
+            self.active_module,
+            {"requests": 0, "responses": 0, "blocked": 0, "timeouts": 0, "errors": 0, "server_errors": 0},
+        )
+        stats["requests"] += 1
+        if kind == "timeout":
+            stats["timeouts"] += 1
+        else:
+            stats["errors"] += 1
+
+    def _emit_request_event(self, url, method, status_code=None, outcome="response"):
+        if not self.request_event_callback or not self.active_module:
+            return
+
+        count = self._request_log_counts.get(self.active_module, 0)
+        if count >= self.runtime_log_max_per_module:
+            return
+
+        self._request_log_counts[self.active_module] = count + 1
+        blocked = status_code in (401, 403, 406, 429) if status_code is not None else False
+
+        self.request_event_callback(
+            {
+                "module": self.active_module,
+                "url": url,
+                "method": method,
+                "status_code": status_code,
+                "outcome": outcome,
+                "blocked": blocked,
+            }
+        )
 
     def add_query_params(self, url, params):
         """Safely merge/overwrite query parameters into a URL."""

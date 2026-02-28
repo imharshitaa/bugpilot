@@ -18,6 +18,9 @@ scanner:
   threads: 5
   include_subdomains: true
   max_endpoints_per_module: 15
+  fast_mode: true
+  max_payloads_per_test: 2
+  runtime_log_max_per_module: 20
   skip_static_extensions:
     - ".js"
     - ".css"
@@ -35,6 +38,14 @@ scanner:
 report:
   output_path: "reports/target_report.md"
   format: "markdown"
+  output_formats: ["markdown", "json"]
+
+ci:
+  headless_default: false
+  fail_on_findings: false
+
+lab:
+  docker_auto_validation: false
 
 debug:
   verbose: false
