@@ -54,7 +54,6 @@ def main():
         """
 ===========================================
               BugPilot Scanner
-   Bug Bounty Hunting + Structured Reporting
 ===========================================
 """
     )
