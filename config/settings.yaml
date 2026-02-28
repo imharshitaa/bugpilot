@@ -2,12 +2,13 @@
 # Global scanner and HTTP configuration.
 
 http:
-  timeout: 2
-  retries: 2
+  timeout: 1.5
+  retries: 1
   retry_sleep_seconds: 1
   follow_redirects: true
   verify_tls: true
   user_agent: "BugPilotScanner/1.0"
+  cache_enabled: true
 
 auth:
   enabled: false
@@ -16,6 +17,20 @@ auth:
 scanner:
   threads: 5
   include_subdomains: true
+  max_endpoints_per_module: 15
+  skip_static_extensions:
+    - ".js"
+    - ".css"
+    - ".png"
+    - ".jpg"
+    - ".jpeg"
+    - ".gif"
+    - ".svg"
+    - ".ico"
+    - ".woff"
+    - ".woff2"
+    - ".ttf"
+    - ".map"
 
 report:
   output_path: "reports/target_report.md"
@@ -26,5 +41,4 @@ debug:
 
 crawler:
   max_depth: 1
-  max_links: 40
-
+  max_links: 20

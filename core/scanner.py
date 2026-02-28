@@ -1,6 +1,7 @@
 """Central scan engine: execute modules and enrich findings consistently."""
 
 import importlib
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -36,6 +37,12 @@ class Scanner:
         self.validator = validator
         self.module_config = self._load_yaml("config/modules.yaml")
         self.payload_rules = self._load_yaml("config/payload_rules.yaml")
+        scanner_cfg = self.utils.settings.get("scanner", {})
+        self.max_endpoints_per_module = scanner_cfg.get("max_endpoints_per_module", 15)
+        self.skip_static_extensions = tuple(
+            ext.lower() for ext in scanner_cfg.get("skip_static_extensions", [])
+        )
+        self._snapshot_cache = {}
 
     def _load_yaml(self, path):
         with open(path, "r", encoding="utf-8") as f:
@@ -60,7 +67,8 @@ class Scanner:
 
             try:
                 module = importlib.import_module(f"modules.{module_name}")
-                module_findings = module.run(endpoints, self.utils, self.payload_rules)
+                module_endpoints = self._prepare_endpoints(endpoints)
+                module_findings = module.run(module_endpoints, self.utils, self.payload_rules)
             except Exception as exc:
                 self.utils.log(f"Module {module_name} failed: {exc}")
                 continue
@@ -69,6 +77,18 @@ class Scanner:
                 findings.append(self._enrich_finding(finding, module_name))
 
         return self.validator.deduplicate(findings)
+
+    def _prepare_endpoints(self, endpoints):
+        filtered = []
+        for endpoint in endpoints:
+            path = urlsplit(endpoint.url).path.lower()
+            if self.skip_static_extensions and path.endswith(self.skip_static_extensions):
+                continue
+            filtered.append(endpoint)
+
+        if self.max_endpoints_per_module and self.max_endpoints_per_module > 0:
+            return filtered[: self.max_endpoints_per_module]
+        return filtered
 
     def _normalize_type(self, finding):
         raw = str(finding.get("type", "unknown")).strip().lower()
@@ -82,16 +102,21 @@ class Scanner:
         return slug
 
     def _response_snapshot(self, url):
+        if url in self._snapshot_cache:
+            return self._snapshot_cache[url]
+
         resp = self.utils.http_request(url)
         if not resp:
-            return {
+            snapshot = {
                 "status_code": None,
                 "content_type": None,
                 "server": None,
                 "notes": "No response captured",
             }
+            self._snapshot_cache[url] = snapshot
+            return snapshot
 
-        return {
+        snapshot = {
             "status_code": resp.status_code,
             "content_type": resp.headers.get("Content-Type"),
             "server": resp.headers.get("Server"),
@@ -104,6 +129,8 @@ class Scanner:
                 ),
             },
         }
+        self._snapshot_cache[url] = snapshot
+        return snapshot
 
     def _enrich_finding(self, finding, module_name):
         vuln_type = self._normalize_type(finding)

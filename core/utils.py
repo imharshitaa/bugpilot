@@ -18,6 +18,8 @@ class Utils:
         self.follow_redirects = self.settings["http"]["follow_redirects"]
         self.verify_tls = self.settings["http"].get("verify_tls", True)
         self.user_agent = self.settings["http"]["user_agent"]
+        self.cache_enabled = self.settings["http"].get("cache_enabled", True)
+        self._response_cache = {}
 
         self.auth_enabled = self.settings["auth"]["enabled"]
         self.auth_header = self.settings["auth"]["header"]
@@ -37,16 +39,27 @@ class Utils:
         if extra_headers:
             headers.update(extra_headers)
 
+        cache_key = None
+        if self.cache_enabled and method == "GET":
+            header_key = tuple(sorted(headers.items()))
+            cache_key = (url, method, header_key)
+            cached = self._response_cache.get(cache_key)
+            if cached is not None:
+                return cached
+
         for attempt in range(max(self.retries, 1)):
             try:
                 if method == "GET":
-                    return requests.get(
+                    response = requests.get(
                         url,
                         headers=headers,
                         timeout=self.timeout,
                         allow_redirects=self.follow_redirects,
                         verify=self.verify_tls,
                     )
+                    if cache_key:
+                        self._response_cache[cache_key] = response
+                    return response
 
                 if method == "POST":
                     return requests.post(

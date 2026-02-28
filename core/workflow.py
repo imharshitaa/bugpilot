@@ -6,6 +6,17 @@ Interactive workflow to collect scan intent and selected test cases.
 
 from core.utils import load_yaml
 
+try:
+    from rich.console import Console
+    from rich.table import Table
+
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
+
+console = Console() if RICH_AVAILABLE else None
+
 
 TARGET_TYPES = {
     "1": "web_app",
@@ -25,11 +36,18 @@ class Workflow:
         return [name for name, meta in modules.items() if meta.get("enabled", False)]
 
     def ask_target_type(self):
-        print("\nSelect target type:")
-        print("1. Web App")
-        print("2. API")
-        print("3. Mobile Backend")
-        print("4. Other")
+        if RICH_AVAILABLE:
+            console.print("\n[bold green]Select target type:[/bold green]")
+            console.print("[cyan]1.[/cyan] Web App")
+            console.print("[cyan]2.[/cyan] API")
+            console.print("[cyan]3.[/cyan] Mobile Backend")
+            console.print("[cyan]4.[/cyan] Other")
+        else:
+            print("\nSelect target type:")
+            print("1. Web App")
+            print("2. API")
+            print("3. Mobile Backend")
+            print("4. Other")
         choice = input("Choice [1-4]: ").strip()
         return TARGET_TYPES.get(choice, "web_app")
 
@@ -49,10 +67,20 @@ class Workflow:
         enabled = self._enabled_modules()
         modules = self.module_config.get("modules", {})
 
-        print("\nAvailable test cases/modules:")
-        for idx, module in enumerate(enabled, start=1):
-            desc = modules[module].get("description", "")
-            print(f"{idx}. {module} - {desc}")
+        if RICH_AVAILABLE:
+            table = Table(title="Available Test Cases / Modules", style="green")
+            table.add_column("#", style="bright_green", justify="right")
+            table.add_column("Module", style="cyan")
+            table.add_column("Description", style="green")
+            for idx, module in enumerate(enabled, start=1):
+                desc = modules[module].get("description", "")
+                table.add_row(str(idx), module, desc)
+            console.print(table)
+        else:
+            print("\nAvailable test cases/modules:")
+            for idx, module in enumerate(enabled, start=1):
+                desc = modules[module].get("description", "")
+                print(f"{idx}. {module} - {desc}")
 
         raw = input(
             "Choose modules by number/name (comma-separated) or 'all' [all]: "
