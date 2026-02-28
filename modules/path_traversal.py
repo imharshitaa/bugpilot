@@ -29,11 +29,7 @@ def run(endpoints, utils, payload_rules):
 
     for ep in endpoints:
         for payload in PAYLOADS:
-
-            if "?" in ep.url:
-                test_url = f"{ep.url}&file={payload}"
-            else:
-                test_url = f"{ep.url}?file={payload}"
+            test_url = utils.add_query_params(ep.url, {"file": payload})
 
             resp = utils.http_request(test_url)
             if not resp:
@@ -46,13 +42,13 @@ def run(endpoints, utils, payload_rules):
                     findings.append({
                         "type": "path_traversal",
                         "cwe": "CWE-22",
-                        "severity": "high",
+                        "severity": get_severity("path_traversal"),
                         "endpoint": ep.url,
                         "payload": payload,
                         "evidence": resp.text[:200],
-                        "mitigation": "Validate file paths and use allowlists.",
-                        "exploitation_methods": "\n- Read restricted files (safe detection)\n- Probe directory structure",
-                        "references": "https://owasp.org/www-community/attacks/Path_Traversal"
+                        "mitigation": MITIGATIONS["path_traversal"],
+                        "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["path_traversal"]),
+                        "references": REFERENCES["path_traversal"],
                     })
                     break
 

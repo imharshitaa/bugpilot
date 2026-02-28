@@ -23,11 +23,7 @@ def run(endpoints, utils, payload_rules):
         for payload in rules["payloads"]:
             
             # Build URL with payload in query string
-            test_url = ep.url
-            if "?" in test_url:
-                test_url = f"{test_url}&test={payload}"
-            else:
-                test_url = f"{test_url}?test={payload}"
+            test_url = utils.add_query_params(ep.url, {"test": payload})
 
             resp = utils.http_request(test_url)
             if not resp:

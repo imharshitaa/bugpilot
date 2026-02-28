@@ -1,15 +1,11 @@
-"""
-scanner.py
------------
-Central engine that:
-- Loads module configuration
-- Runs selected modules
-- Enriches findings with response, risk, and validation guidance
-"""
+"""Central scan engine: execute modules and enrich findings consistently."""
 
 import importlib
 
 import yaml
+
+from models.prompts import EXPLOIT_METHODS, MITIGATIONS, REFERENCES
+from models.severity import get_severity
 
 
 RISK_SUMMARY = {
@@ -28,7 +24,7 @@ LAB_VALIDATION_GUIDE = {
     "idor": "Use two authorized test users in staging and validate object ownership checks.",
     "open_redirect": "Validate untrusted redirect behavior against an allowlist policy in staging.",
     "path_traversal": "Verify blocked traversal payloads in a sandbox app with synthetic files.",
-    "file_inclusion": "Use a local vulnerable app and confirm inclusion defenses in place.",
+    "file_inclusion_indicator": "Use a local vulnerable app and confirm inclusion defenses in place.",
     "cors_misconfig": "Re-test cross-origin requests in staging with a strict allowed origin list.",
     "csrf": "Simulate cross-site form submission in staging and confirm CSRF token validation.",
 }
@@ -81,6 +77,8 @@ class Scanner:
             return "ssrf"
         if slug == "cross_site_request_forgery":
             return "csrf"
+        if slug == "file_inclusion":
+            return "file_inclusion_indicator"
         return slug
 
     def _response_snapshot(self, url):
@@ -109,7 +107,16 @@ class Scanner:
 
     def _enrich_finding(self, finding, module_name):
         vuln_type = self._normalize_type(finding)
-        severity = str(finding.get("severity", "low")).lower()
+        severity = str(finding.get("severity") or get_severity(vuln_type)).lower()
+
+        if vuln_type in MITIGATIONS:
+            finding["mitigation"] = finding.get("mitigation") or MITIGATIONS[vuln_type]
+        if vuln_type in REFERENCES:
+            finding["references"] = finding.get("references") or REFERENCES[vuln_type]
+        if vuln_type in EXPLOIT_METHODS:
+            finding["exploitation_methods"] = finding.get("exploitation_methods") or (
+                "\n- " + "\n- ".join(EXPLOIT_METHODS[vuln_type])
+            )
 
         finding["normalized_type"] = vuln_type
         finding["module"] = module_name

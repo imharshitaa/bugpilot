@@ -9,8 +9,8 @@ test_cases:
       opensource:
         - dalfox
     commands:
-      - "python main.py"
-      - "dalfox url https://target/path?q=test"
+      - "python modules/xss.py"
+      - "dalfox url 'https://target/search?q=test' --skip-bav"
 
   sqli:
     attack_method: error-signature-and-input-variation
@@ -22,8 +22,8 @@ test_cases:
       opensource:
         - sqlmap
     commands:
-      - "python main.py"
-      - "sqlmap -u 'https://target/item?id=1' --batch"
+      - "python modules/sqli.py"
+      - "sqlmap -u 'https://target/item?id=1' --batch --risk=1 --level=1"
 
   ssrf:
     attack_method: safe-internal-url-injection
@@ -35,7 +35,8 @@ test_cases:
       opensource:
         - interactsh-client
     commands:
-      - "python main.py"
+      - "python modules/ssrf.py"
+      - "interactsh-client"
 
   auth_bypass:
     attack_method: unauthorized-resource-access-validation
@@ -47,7 +48,8 @@ test_cases:
       opensource:
         - nuclei
     commands:
-      - "python main.py"
+      - "python modules/auth_bypass.py"
+      - "nuclei -u 'https://target' -tags auth"
 
   misconfig:
     attack_method: security-header-and-policy-audit
@@ -59,8 +61,9 @@ test_cases:
       opensource:
         - nuclei
     commands:
-      - "python main.py"
-      - "nikto -h https://target"
+      - "python modules/misconfig.py"
+      - "nikto -h 'https://target'"
+      - "nuclei -u 'https://target' -tags misconfig"
 
   idor:
     attack_method: identifier-mutation-and-access-check
@@ -72,7 +75,8 @@ test_cases:
       opensource:
         - ffuf
     commands:
-      - "python main.py"
+      - "python modules/idor.py"
+      - "ffuf -u 'https://target/profile?id=FUZZ' -w /usr/share/seclists/Fuzzing/3-digits-000-999.txt -mc all"
 
   open_redirect:
     attack_method: redirect-parameter-manipulation
@@ -82,9 +86,10 @@ test_cases:
       kali:
         - burpsuite
       opensource:
-        - gf
+        - nuclei
     commands:
-      - "python main.py"
+      - "python modules/open_redirect.py"
+      - "nuclei -u 'https://target' -tags redirect"
 
   path_traversal:
     attack_method: encoded-path-variation-testing
@@ -96,7 +101,8 @@ test_cases:
       opensource:
         - nuclei
     commands:
-      - "python main.py"
+      - "python modules/path_traversal.py"
+      - "nuclei -u 'https://target' -tags lfi,traversal"
 
   file_inclusion_indicator:
     attack_method: include-parameter-abuse-detection
@@ -108,7 +114,8 @@ test_cases:
       opensource:
         - nuclei
     commands:
-      - "python main.py"
+      - "python modules/file_inclusion_indicator.py"
+      - "nuclei -u 'https://target' -tags lfi,rfi"
 
   cors_misconfig:
     attack_method: origin-header-policy-validation
@@ -120,7 +127,8 @@ test_cases:
       opensource:
         - corsy
     commands:
-      - "python main.py"
+      - "python modules/cors_misconfig.py"
+      - "corsy -u 'https://target'"
 
   csrf:
     attack_method: anti-csrf-token-presence-check
@@ -132,4 +140,5 @@ test_cases:
       opensource:
         - nuclei
     commands:
-      - "python main.py"
+      - "python modules/csrf.py"
+      - "nuclei -u 'https://target' -tags csrf"

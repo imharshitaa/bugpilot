@@ -9,6 +9,7 @@ HOW IT WORKS:
 """
 
 from models.severity import get_severity
+from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
 
 PAYLOADS = [
     "/etc/passwd",
@@ -28,7 +29,7 @@ def run(endpoints, utils, payload_rules):
 
     for ep in endpoints:
         for payload in PAYLOADS:
-            test_url = ep.url + f"?file={payload}"
+            test_url = utils.add_query_params(ep.url, {"file": payload})
 
             resp = utils.http_request(test_url)
             if not resp:
@@ -39,15 +40,15 @@ def run(endpoints, utils, payload_rules):
             for sig in ERROR_SIGS:
                 if sig.lower() in text:
                     findings.append({
-                        "type": "file_inclusion",
+                        "type": "file_inclusion_indicator",
                         "cwe": "CWE-98",
-                        "severity": "high",
+                        "severity": get_severity("file_inclusion_indicator"),
                         "endpoint": ep.url,
                         "payload": payload,
                         "evidence": resp.text[:200],
-                        "mitigation": "Validate file inputs, disable remote includes.",
-                        "exploitation_methods": "\n- Probe include() behavior\n- Detect LFI/RFI stack traces",
-                        "references": "https://owasp.org/www-community/attacks/Path_Traversal"
+                        "mitigation": MITIGATIONS["file_inclusion_indicator"],
+                        "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["file_inclusion_indicator"]),
+                        "references": REFERENCES["file_inclusion_indicator"],
                     })
                     break
 

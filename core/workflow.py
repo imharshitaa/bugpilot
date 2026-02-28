@@ -80,11 +80,12 @@ class Workflow:
 
         for module in selected_modules:
             entry = catalog.get(module, {})
+            default_script = f"modules/{module}.py"
             plan[module] = {
                 "attack_method": entry.get("attack_method", "custom-module-validation"),
-                "custom_scripts": entry.get("custom_scripts", [f"modules/{module}.py"]),
+                "custom_scripts": entry.get("custom_scripts", [default_script]),
                 "tools": entry.get("tools", {"kali": [], "opensource": []}),
-                "commands": entry.get("commands", ["python main.py"]),
+                "commands": entry.get("commands", [f"python {default_script}"]),
             }
 
         return plan

@@ -14,16 +14,10 @@ from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
 def run(endpoints, utils, payload_rules):
     findings = []
 
-    test_redirect = "https://google.com"
+    test_redirect = "https://example.org"
 
     for ep in endpoints:
-        url = ep.url
-
-        # Attach redirect parameter safely
-        if "?" in url:
-            test_url = f"{url}&redirect={test_redirect}"
-        else:
-            test_url = f"{url}?redirect={test_redirect}"
+        test_url = utils.add_query_params(ep.url, {"redirect": test_redirect})
 
         resp = utils.http_request(test_url)
         if not resp:
@@ -32,17 +26,17 @@ def run(endpoints, utils, payload_rules):
         # Check for server redirect to external site
         if resp.history:
             final = resp.url
-            if "google.com" in final:
+            if "example.org" in final:
                 findings.append({
                     "type": "open_redirect",
                     "cwe": "CWE-601",
-                    "severity": "medium",
+                    "severity": get_severity("open_redirect"),
                     "endpoint": ep.url,
                     "payload": test_redirect,
                     "evidence": f"Redirected to {final}",
-                    "mitigation": "Validate redirect URLs against an allowlist.",
-                    "exploitation_methods": "\n- Phishing redirection\n- Login-page redirection",
-                    "references": "https://owasp.org/www-community/attacks/Unvalidated_Redirects_and_Forwards"
+                    "mitigation": MITIGATIONS["open_redirect"],
+                    "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["open_redirect"]),
+                    "references": REFERENCES["open_redirect"],
                 })
 
     return findings

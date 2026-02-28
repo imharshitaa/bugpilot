@@ -4,7 +4,9 @@
 http:
   timeout: 2
   retries: 2
+  retry_sleep_seconds: 1
   follow_redirects: true
+  verify_tls: true
   user_agent: "BugPilotScanner/1.0"
 
 auth:
@@ -13,7 +15,6 @@ auth:
 
 scanner:
   threads: 5
-  max_depth: 3
   include_subdomains: true
 
 report:
@@ -26,5 +27,4 @@ debug:
 crawler:
   max_depth: 1
   max_links: 40
-
 

@@ -1,26 +1,20 @@
-"""
-crawler.py
------------
-Discovers additional URLs from a base target using: engine - crawling and endpoint discovery
-- HTML link extraction
-- Script file parsing
-- Simple regex-based URL discovery
-
-Only safe crawling is implemented.
-"""
+"""Safe in-scope crawling and endpoint discovery."""
 
 import re
+from urllib.parse import urlsplit
+
 from bs4 import BeautifulSoup
+
 
 class Crawler:
     def __init__(self, utils):
         self.utils = utils
-        self.max_depth = utils.settings["scanner"]["max_depth"]
+        crawler_cfg = utils.settings.get("crawler", {})
+        self.max_depth = crawler_cfg.get("max_depth", 1)
+        self.max_links = crawler_cfg.get("max_links", 40)
 
     def extract_links(self, html, base_url):
-        """
-        Extract <a href>, <link>, <script src>, and simple endpoints from HTML.
-        """
+        """Extract <a href>, <link>, <script src>, and simple href regex matches."""
         soup = BeautifulSoup(html, "html.parser")
         urls = set()
 
@@ -43,14 +37,15 @@ class Crawler:
 
         return list(urls)
 
+    def _is_same_host(self, base_url, candidate_url):
+        return urlsplit(base_url).netloc == urlsplit(candidate_url).netloc
+
     def crawl(self, base_url):
-        """
-        Crawls recursively up to max_depth.
-        """
-        discovered = set([base_url])
+        """Crawl recursively up to configured depth and link limits."""
+        discovered = {base_url}
         queue = [(base_url, 0)]
 
-        while queue:
+        while queue and len(discovered) < self.max_links:
             url, depth = queue.pop(0)
             if depth >= self.max_depth:
                 continue
@@ -62,9 +57,10 @@ class Crawler:
             links = self.extract_links(resp.text, url)
 
             for link in links:
-                if link not in discovered:
+                if not self._is_same_host(base_url, link):
+                    continue
+                if link not in discovered and len(discovered) < self.max_links:
                     discovered.add(link)
                     queue.append((link, depth + 1))
 
         return list(discovered)
-

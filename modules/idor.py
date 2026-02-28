@@ -40,13 +40,13 @@ def run(endpoints, utils, payload_rules):
             findings.append({
                 "type": "idor",
                 "cwe": "CWE-639",
-                "severity": "high",
+                "severity": get_severity("idor"),
                 "endpoint": ep.url,
                 "payload": f"ID changed from {original_id} to {test_id}",
                 "evidence": resp_test.text[:200],
-                "mitigation": MITIGATIONS["auth_bypass"],
-                "exploitation_methods": "\n- Modify IDs in parameters\n- Direct object enumeration",
-                "references": "https://owasp.org/www-community/attacks/Insecure_Direct_Object_Reference"
+                "mitigation": MITIGATIONS["idor"],
+                "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["idor"]),
+                "references": REFERENCES["idor"],
             })
 
     return findings

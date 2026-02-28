@@ -12,7 +12,6 @@ HOW IT WORKS:
 from models.severity import get_severity
 from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
 from models.false_positive import is_false_positive
-import requests
 
 def run(endpoints, utils, payload_rules):
     findings = []
@@ -55,4 +54,3 @@ def run(endpoints, utils, payload_rules):
     utils.auth_header = original_auth
 
     return findings
-

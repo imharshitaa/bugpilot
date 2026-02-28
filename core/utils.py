@@ -1,12 +1,8 @@
-"""
-utils.py
----------
-Utility functions used across the scanner.
-"""
+"""Utility functions used across the scanner."""
 
 import json
 import time
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 import yaml
@@ -18,7 +14,9 @@ class Utils:
 
         self.timeout = self.settings["http"]["timeout"]
         self.retries = self.settings["http"]["retries"]
+        self.retry_sleep_seconds = self.settings["http"].get("retry_sleep_seconds", 1)
         self.follow_redirects = self.settings["http"]["follow_redirects"]
+        self.verify_tls = self.settings["http"].get("verify_tls", True)
         self.user_agent = self.settings["http"]["user_agent"]
 
         self.auth_enabled = self.settings["auth"]["enabled"]
@@ -30,13 +28,16 @@ class Utils:
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
-    def http_request(self, url, method="GET", payload=None):
+    def http_request(self, url, method="GET", payload=None, extra_headers=None):
         headers = {"User-Agent": self.user_agent}
 
         if self.auth_enabled and self.auth_header:
             headers["Authorization"] = self.auth_header
 
-        for attempt in range(self.retries):
+        if extra_headers:
+            headers.update(extra_headers)
+
+        for attempt in range(max(self.retries, 1)):
             try:
                 if method == "GET":
                     return requests.get(
@@ -44,6 +45,7 @@ class Utils:
                         headers=headers,
                         timeout=self.timeout,
                         allow_redirects=self.follow_redirects,
+                        verify=self.verify_tls,
                     )
 
                 if method == "POST":
@@ -53,15 +55,26 @@ class Utils:
                         data=payload,
                         timeout=self.timeout,
                         allow_redirects=self.follow_redirects,
+                        verify=self.verify_tls,
                     )
 
                 return None
             except Exception as exc:
                 if self.verbose:
                     print(f"[!] Request error ({attempt + 1}/{self.retries}): {exc}")
-                time.sleep(1)
+                time.sleep(self.retry_sleep_seconds)
 
         return None
+
+    def add_query_params(self, url, params):
+        """Safely merge/overwrite query parameters into a URL."""
+        split = urlsplit(url)
+        existing = dict(parse_qsl(split.query, keep_blank_values=True))
+        for key, value in params.items():
+            existing[str(key)] = str(value)
+
+        query = urlencode(existing, doseq=True)
+        return urlunsplit((split.scheme, split.netloc, split.path, query, split.fragment))
 
     def join_url(self, base, path):
         try:

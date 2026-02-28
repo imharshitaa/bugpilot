@@ -10,6 +10,7 @@ HOW IT WORKS:
 
 from bs4 import BeautifulSoup
 from models.severity import get_severity
+from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
 
 def run(endpoints, utils, payload_rules):
     findings = []
@@ -25,15 +26,15 @@ def run(endpoints, utils, payload_rules):
         for form in forms:
             if not form.find("input", {"name": "csrf_token"}):
                 findings.append({
-                    "type": "Cross-Site Request Forgery",
+                    "type": "csrf",
                     "cwe": "CWE-352",
-                    "severity": "medium",
+                    "severity": get_severity("csrf"),
                     "endpoint": ep.url,
                     "payload": "N/A",
                     "evidence": "Missing CSRF token in form",
-                    "mitigation": "Implement anti-CSRF tokens for all state-changing forms.",
-                    "exploitation_methods": "\n- Force user actions via hidden form submit",
-                    "references": "https://owasp.org/www-community/attacks/csrf"
+                    "mitigation": MITIGATIONS["csrf"],
+                    "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["csrf"]),
+                    "references": REFERENCES["csrf"],
                 })
 
     return findings
