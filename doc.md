@@ -112,7 +112,7 @@ python3 main.py --headless \
 ```
 
 ## 8) GitHub Pages Demo Access
-- Public URL: `https://imharshitaa.github.io/bugpilot/`
+- Public URL: `https://imharshitaa.github.io/bugpilot/demo/`
 - Local preview:
 ```bash
 python3 -m http.server 8080 --bind 127.0.0.1 --directory .

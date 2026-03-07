@@ -11,7 +11,7 @@ It is built to support developer self-testing, security engineering workflows, a
 - CI/CD-ready headless mode for security gates.
 
 ## GitHub Demo Page
-- Live demo URL: `https://imharshitaa.github.io/bugpilot/`
+- Live demo URL: `https://imharshitaa.github.io/bugpilot/demo/`
 - Demo is a shell-style terminal UI for product showcase.
 - Production/real testing should be run locally or in CI using the CLI.
 
