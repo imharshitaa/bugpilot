@@ -1,0 +1,68 @@
+# settings.yaml
+# Global scanner and HTTP configuration.
+
+http:
+  timeout: 1.5
+  retries: 1
+  retry_sleep_seconds: 1
+  follow_redirects: true
+  verify_tls: true
+  user_agent: "BugPilotScanner/1.0"
+  cache_enabled: true
+
+auth:
+  enabled: false
+  header: ""   # Example: "Bearer TOKEN"
+
+scanner:
+  threads: 5
+  include_subdomains: true
+  max_endpoints_per_module: 15
+  fast_mode: true
+  max_payloads_per_test: 2
+  max_params_per_test_fast: 2
+  max_params_per_test_full: 4
+  min_confidence: 0.6
+  runtime_log_max_per_module: 20
+  skip_static_extensions:
+    - ".js"
+    - ".css"
+    - ".png"
+    - ".jpg"
+    - ".jpeg"
+    - ".gif"
+    - ".svg"
+    - ".ico"
+    - ".woff"
+    - ".woff2"
+    - ".ttf"
+    - ".map"
+
+report:
+  output_path: "reports/target_report.md"
+  format: "markdown"
+  output_formats: ["markdown", "json"]
+
+ci:
+  headless_default: false
+  fail_on_findings: false
+
+lab:
+  docker_auto_validation: false
+
+web_terminal:
+  backend_ws_url: ""
+  demo_mode: true
+  demo_allowed_targets:
+    - "http://testphp.vulnweb.com"
+    - "http://testhtml5.vulnweb.com"
+    - "http://zero.webappsecurity.com"
+    - "http://demo.testfire.net"
+    - "https://juice-shop.herokuapp.com"
+
+debug:
+  verbose: false
+
+crawler:
+  max_depth: 1
+  max_links: 20

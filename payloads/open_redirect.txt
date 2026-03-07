@@ -1,0 +1,7 @@
+# Used to test open redirect behavior
+https://google.com
+https://bing.com
+https://example.org
+//google.com
+//evil.com
+https://127.0.0.1

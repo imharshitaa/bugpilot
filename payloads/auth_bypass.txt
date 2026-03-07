@@ -1,0 +1,7 @@
+# Used for parameter tampering / token removal tests
+admin=true
+isAdmin=1
+role=admin
+user=0
+id=1
+id=2

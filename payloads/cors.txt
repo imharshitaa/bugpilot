@@ -1,0 +1,10 @@
+# Allowed origin tests for CORS misconfig detection
+https://evil.com
+http://malicious.com
+null
+chrome-extension://test
+file://
+
+
+
+

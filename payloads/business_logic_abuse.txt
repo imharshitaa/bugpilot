@@ -1,0 +1,4 @@
+# Business logic tamper values
+price=-1
+amount=0
+quantity=-5

@@ -1,0 +1,3 @@
+# JWT weak validation indicators
+alg=none
+tampered_signature=true

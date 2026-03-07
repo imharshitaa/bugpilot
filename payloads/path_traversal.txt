@@ -1,0 +1,8 @@
+# Safe directory traversal test payloads
+../../etc/passwd
+../etc/passwd
+..%2F..%2Fetc%2Fpasswd
+..\\..\\windows\\win.ini
+../../../var/www/html
+../"../../../../etc/passwd
+..%c0%af../etc/passwd
