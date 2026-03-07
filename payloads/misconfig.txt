@@ -1,0 +1,8 @@
+# Headers expected for security validation
+X-Frame-Options
+Strict-Transport-Security
+X-Content-Type-Options
+Content-Security-Policy
+Access-Control-Allow-Origin
+Referrer-Policy
+Permissions-Policy

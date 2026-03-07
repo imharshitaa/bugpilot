@@ -1,0 +1,3 @@
+# Used to store discovered URLs.
+# Will be overwritten during scan.
+
