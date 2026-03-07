@@ -1,7 +1,0 @@
-# scope.txt
-# Add URLs or endpoints you want BugPilot to scan:
-# One per line.
-
-https://demo.owaspwebgoat.org/WebGoat
-
-

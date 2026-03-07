@@ -3,19 +3,605 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BugPilot</title>
-  <script>
-    (function redirectToDocs() {
-      var p = window.location.pathname || "/";
-      var host = window.location.hostname || "";
-      var isGitHubPages = host.endsWith(".github.io");
-      var repoBase = isGitHubPages ? "/bugpilot" : "";
-      var target = repoBase + "/docs/";
-      window.location.replace(target);
-    })();
-  </script>
+  <title>BugPilot Terminal</title>
+  <style>
+    :root {
+      --bg: #03070c;
+      --panel: #051123;
+      --grid: #0b1925;
+      --green: #3cff6a;
+      --cyan: #53e5ff;
+      --amber: #ffcc4d;
+      --red: #ff5f56;
+      --muted: #9eb8cc;
+      --line: #173147;
+      --text: #c8d7e6;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      color: var(--green);
+      background:
+        linear-gradient(transparent 95%, rgba(58, 255, 95, 0.08) 96%),
+        linear-gradient(90deg, transparent 95%, rgba(83, 229, 255, 0.07) 96%),
+        radial-gradient(1400px 700px at 20% -10%, #0a1c2b 0%, var(--bg) 60%);
+      background-size: 100% 28px, 28px 100%, cover;
+      padding: 12px;
+    }
+    .terminal {
+      width: min(1180px, 94vw);
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px #11253a, 0 24px 70px rgba(0, 0, 0, 0.65);
+      background: var(--panel);
+    }
+    .bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 14px;
+      background: #0c1a27;
+      border-bottom: 1px solid var(--line);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot.r { background: #ff605c; }
+    .dot.y { background: #ffbd44; }
+    .dot.g { background: #00ca4e; }
+    .title { margin-left: 10px; color: var(--muted); font-size: 17px; }
+
+    .screen {
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .meta {
+      line-height: 1.0;
+      font-size: 15px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .meta > div { margin: 0; padding: 0; line-height: 1.0; }
+    .meta .project { color: var(--muted); }
+    .meta .github { color: var(--muted); }
+    .meta .commands { color: var(--muted); }
+    .meta .hint { color: var(--muted); }
+    .meta .samples { color: var(--muted); font-weight: 400; }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-top: 0;
+      padding-top: 0;
+    }
+    .input-row.inline { margin: 0; padding: 0; }
+
+    .prompt {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      user-select: none;
+      font-weight: 700;
+      letter-spacing: 1px;
+      font-size: 20px;
+      line-height: 1;
+      min-width: 42px;
+      justify-content: flex-start;
+    }
+    .prompt .p1 { color: #ff5f56; }
+    .prompt .p2 { color: #f7a733; }
+    .prompt .p3 { color: #56f56e; }
+
+    .terminal-input {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      color: var(--green);
+      font: inherit;
+      font-size: 16px;
+      outline: none;
+      caret-color: #8b96a6;
+      min-width: 0;
+    }
+    .terminal-input.submitted { color: #57c7ff; }
+
+    .output {
+      min-height: 65vh;
+      max-height: 67vh;
+      overflow: auto;
+      line-height: 1.0;
+      font-size: 15px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding-right: 2px;
+    }
+    .line { margin: 0; padding: 0; }
+    .ok { color: #57c7ff; }
+    .running { color: var(--green); }
+    .info { color: #57c7ff; }
+    .cmd { color: #57c7ff; }
+    .promptline { color: #57c7ff; }
+    .warn { color: var(--amber); }
+    .err { color: var(--red); }
+    .vuln { color: var(--red); }
+
+    @media (max-width: 1200px) {
+      .title { font-size: 16px; }
+      .meta, .output { font-size: 14px; }
+      .prompt { font-size: 18px; min-width: 40px; }
+      .terminal-input { font-size: 14px; }
+      .output { min-height: 68vh; max-height: 70vh; }
+    }
+  </style>
 </head>
 <body>
-  <p>Redirecting to <a href="/bugpilot/docs/">BugPilot terminal demo</a>...</p>
+  <div class="terminal">
+    <div class="bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="title">bugpilot-terminal</span>
+    </div>
+    <div class="screen">
+      <div class="meta">
+        <div class="project">Project - BugPilot</div>
+        <div class="github">Github - https://github.com/imharshitaa/bugpilot</div>
+        <div class="commands">Commands: bugpilot --help, bugpilot scan &lt;url&gt;, bugpilot crawl &lt;url&gt;, bugpilot recon &lt;url&gt;, bugpilot exploit &lt;url&gt;, bugpilot test &lt;url&gt;</div>
+        <div class="hint">Type `help` or `bugpilot --help` to list commands.</div>
+        <div class="samples">User sample urls =&gt; (http://testphp.vulnweb.com, http://testhtml5.vulnweb.com, http://zero.webappsecurity.com, http://demo.testfire.net, https://juice-shop.herokuapp.com)</div>
+      </div>
+
+      <div id="output" class="output" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <script>
+    const output = document.getElementById('output');
+    let activeInput = null;
+    const history = [];
+    let historyIndex = -1;
+
+    const SAMPLE_URLS = [
+      'http://testphp.vulnweb.com',
+      'http://testhtml5.vulnweb.com',
+      'http://zero.webappsecurity.com',
+      'http://demo.testfire.net',
+      'https://juice-shop.herokuapp.com'
+    ];
+    const SAMPLE_SET = new Set(SAMPLE_URLS);
+
+    const state = {
+      ws: null,
+      connected: false,
+      backend: '',
+      busy: false,
+      pendingCommand: '',
+      connectInProgress: false,
+      runningDemo: false,
+    };
+
+    function scrollToBottom() {
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function focusActiveInput() {
+      if (!activeInput) return;
+      activeInput.focus();
+      const end = activeInput.value.length;
+      activeInput.setSelectionRange(end, end);
+    }
+
+    function setActiveInput(el) {
+      activeInput = el;
+      focusActiveInput();
+    }
+
+    function createPromptInput() {
+      const row = document.createElement('div');
+      row.className = 'input-row inline';
+      row.innerHTML =
+        '<span class="prompt"><span class="p1">&gt;</span><span class="p2">&gt;</span><span class="p3">&gt;</span></span>';
+
+      const el = document.createElement('input');
+      el.className = 'terminal-input';
+      el.type = 'text';
+      el.autocomplete = 'off';
+      el.spellcheck = false;
+      el.placeholder = 'bugpilot scan https://target';
+      row.appendChild(el);
+      output.appendChild(row);
+      attachPromptHandlers(el);
+      setActiveInput(el);
+      scrollToBottom();
+      return el;
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function line(text, cls = 'ok') {
+      const el = document.createElement('div');
+      el.className = `line ${cls}`;
+      el.textContent = text;
+      output.appendChild(el);
+      scrollToBottom();
+    }
+
+    function normalizeWsUrl(raw) {
+      let value = String(raw || '').trim();
+      if (!value) return '';
+      if (/^https?:\/\//.test(value)) value = value.replace(/^http/, 'ws');
+      if (!/^wss?:\/\//.test(value)) value = 'wss://' + value;
+      if (!/\/ws(\?|$)/.test(value)) value = value.replace(/\/+$/, '') + '/ws';
+      return value;
+    }
+
+    async function loadTerminalConfig() {
+      try {
+        const resp = await fetch('./terminal-config.json', { cache: 'no-store' });
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        if (cfg.backend_ws_url) {
+          state.backend = normalizeWsUrl(cfg.backend_ws_url);
+        }
+      } catch (_) {
+        // Keep offline demo mode functional even if config fetch fails.
+      }
+    }
+
+    function connectBackend(url, silent = false) {
+      const normalized = normalizeWsUrl(url);
+      if (!normalized) {
+        line('[~] backend URL missing. running DEMO_MODE locally in browser.', 'info');
+        return;
+      }
+      if (state.connectInProgress) return;
+
+      state.connectInProgress = true;
+      if (state.ws) {
+        try { state.ws.close(); } catch (_) {}
+      }
+
+      const ws = new WebSocket(normalized);
+      state.ws = ws;
+      state.backend = normalized;
+
+      ws.onopen = () => {
+        state.connected = true;
+        state.connectInProgress = false;
+        if (!silent) line(`[+] connected: ${normalized}`, 'running');
+        if (state.pendingCommand) {
+          runRemote(state.pendingCommand);
+          state.pendingCommand = '';
+        }
+      };
+
+      ws.onmessage = (evt) => {
+        let msg;
+        try { msg = JSON.parse(evt.data); } catch { line(evt.data, 'info'); return; }
+
+        if (msg.type === 'hello') {
+          line(`[+] ${msg.message}`, 'running');
+        } else if (msg.type === 'line') {
+          line(msg.line, msg.stream === 'stderr' ? 'vuln' : 'info');
+        } else if (msg.type === 'status') {
+          if (msg.state === 'queued') {
+            state.busy = true;
+            line('[~] command queued...', 'running');
+          } else if (msg.state === 'running') {
+            state.busy = true;
+            line('[~] running...', 'running');
+          } else if (msg.state === 'finished') {
+            state.busy = false;
+            line(`[+] finished (exit=${msg.exit_code})`, msg.exit_code === 0 ? 'running' : 'vuln');
+            createPromptInput();
+          } else if (msg.state === 'timeout') {
+            state.busy = false;
+            line(`[!] timeout: ${msg.message || ''}`, 'vuln');
+            createPromptInput();
+          }
+        } else if (msg.type === 'error') {
+          state.busy = false;
+          line(`[!] ${msg.message}`, 'vuln');
+          createPromptInput();
+        }
+      };
+
+      ws.onclose = () => {
+        state.connected = false;
+        state.busy = false;
+        state.connectInProgress = false;
+      };
+
+      ws.onerror = () => {
+        state.connected = false;
+        state.busy = false;
+        state.connectInProgress = false;
+      };
+    }
+
+    function runRemote(command) {
+      if (!state.connected || !state.ws) {
+        if (state.backend) {
+          state.pendingCommand = command;
+          connectBackend(state.backend, true);
+          return false;
+        }
+        return false;
+      }
+      if (state.busy) {
+        line('[~] backend busy. wait for current command to finish.', 'info');
+        return true;
+      }
+      state.ws.send(JSON.stringify({ type: 'run', command }));
+      return true;
+    }
+
+    const PATH_STATUSES = [
+      ['/', 200],
+      ['/login', 200],
+      ['/search?q=test', 302],
+      ['/api/v1/users', 200],
+      ['/admin', 403],
+      ['/robots.txt', 200],
+      ['/sitemap.xml', 200],
+    ];
+
+    function fakeCode(url, seed) {
+      const base = [200, 200, 301, 302, 403, 404];
+      return base[(url.length + seed) % base.length];
+    }
+
+    function pad(value, size) {
+      const text = String(value);
+      if (text.length >= size) return text;
+      return text + ' '.repeat(size - text.length);
+    }
+
+    function printVulnTable(target) {
+      const host = new URL(target).hostname;
+      line('[+] vulnerabilities found:', 'running');
+      line(
+        `${pad('ID', 7)}| ${pad('Severity', 8)}| ${pad('Category', 20)}| ${pad('Source Target', 34)}| Evidence`,
+        'info'
+      );
+      line(
+        `${pad('V-001', 7)}| ${pad('HIGH', 8)}| ${pad('SQLi', 20)}| ${pad(`${host}/search?q=test`, 34)}| boolean/time response diff`,
+        'vuln'
+      );
+      line(
+        `${pad('V-002', 7)}| ${pad('MEDIUM', 8)}| ${pad('Missing Headers', 20)}| ${pad(`${host}/`, 34)}| CSP/XFO absent`,
+        'vuln'
+      );
+      line(
+        `${pad('V-003', 7)}| ${pad('MEDIUM', 8)}| ${pad('Weak Rate Limit', 20)}| ${pad(`${host}/login`, 34)}| repeated auth accepted`,
+        'vuln'
+      );
+    }
+
+    async function printScanLikeLogs(target) {
+      const root = target.replace(/\/$/, '');
+      line('[~] phase: discovery', 'running');
+      await sleep(80);
+      for (let i = 0; i < PATH_STATUSES.length; i++) {
+        const [path, code] = PATH_STATUSES[i];
+        line(`[>] tested: ${root}${path} | status=${code}`, 'info');
+        await sleep(65);
+      }
+      line('[~] phase: active checks', 'running');
+      await sleep(90);
+      line('[>] payload-set: xss-basic, sqli-basic, header-audit, auth-rate', 'info');
+      await sleep(90);
+      line('[>] xss: findings=0 blocked=0 errors=0', 'info');
+      line('[>] sqli: findings=1 blocked=0 errors=0', 'vuln');
+      line('[>] headers: findings=1 blocked=0 errors=0', 'vuln');
+      line('[>] brute-force: findings=1 blocked=0 errors=0', 'vuln');
+    }
+
+    async function printComprehensiveSections(target) {
+      const root = target.replace(/\/$/, '');
+      line('[~] running full pipeline: scan -> crawl -> recon -> test -> exploit', 'running');
+      await sleep(100);
+
+      line('[+] --- scan ---', 'running');
+      await printScanLikeLogs(target);
+      printVulnTable(target);
+
+      line('[+] --- crawl ---', 'running');
+      const found = ['/','/login','/account','/api/v1','/search','/admin','/logout'];
+      for (let i = 0; i < found.length; i++) {
+        line(`[>] discovered: ${root}${found[i]} | status=${fakeCode(root + found[i], i + 2)}`, 'info');
+        await sleep(55);
+      }
+      line(`[+] total endpoints discovered: ${found.length}`, 'running');
+
+      line('[+] --- recon ---', 'running');
+      line(`[>] host: ${new URL(target).hostname}`, 'info');
+      line('[>] tls: enabled | cert: valid (demo)', 'info');
+      line('[>] tech: nginx, php, jquery (fingerprint demo)', 'info');
+
+      line('[+] --- test ---', 'running');
+      const tests = ['xss', 'sqli', 'ssrf', 'jwt', 'graphql', 'file-upload', 'xxe'];
+      for (let i = 0; i < tests.length; i++) {
+        line(`[~] ${tests[i]} started`, 'running');
+        await sleep(70);
+        const risky = ['sqli', 'jwt', 'file-upload'].includes(tests[i]);
+        line(`[+] ${tests[i]} done | findings=${risky ? 1 : 0} blocked=0 timeouts=0 errors=0`, risky ? 'vuln' : 'info');
+      }
+
+      line('[+] --- exploit ---', 'running');
+      line('[~] isolated validation started', 'running');
+      await sleep(110);
+      line('[>] selected: V-001 SQLi', 'info');
+      line('[+] exploit proof: injectable parameter confirmed (demo evidence)', 'vuln');
+      line('[+] evidence file: demo-output/exploit-proof.json', 'info');
+    }
+
+    async function runDemo(sub, target) {
+      if (state.runningDemo) {
+        line('[~] demo runner busy. wait for current command to finish.', 'info');
+        createPromptInput();
+        return;
+      }
+      state.runningDemo = true;
+      line('[~] DEMO_MODE runner active', 'running');
+      line(`[~] ${sub} started (target=${target})`, 'running');
+      await sleep(180);
+
+      if (sub === 'scan') {
+        line(`[+] source target: ${target}`, 'info');
+        await printScanLikeLogs(target);
+        printVulnTable(target);
+      } else if (sub === 'crawl') {
+        const found = ['/','/login','/account','/api/v1','/search','/admin'];
+        line(`[+] crawling target: ${target}`, 'running');
+        for (let i = 0; i < found.length; i++) {
+          const u = `${target.replace(/\/$/, '')}${found[i]}`;
+          line(`[>] discovered: ${u} | status=${fakeCode(u, i + 2)}`, 'info');
+          await sleep(70);
+        }
+        line(`[+] total endpoints discovered: ${found.length}`, 'running');
+      } else if (sub === 'recon') {
+        line(`[+] recon target: ${target}`, 'running');
+        await sleep(90);
+        line(`[>] dns: host=${new URL(target).hostname}`, 'info');
+        line('[>] tls: enabled | cert: valid (demo)', 'info');
+        line('[>] service: http/https, cert-chain, header snapshot', 'info');
+      } else if (sub === 'test') {
+        line(`[+] testing target: ${target}`, 'running');
+        await printComprehensiveSections(target);
+      } else if (sub === 'exploit') {
+        line(`[+] exploit target: ${target}`, 'running');
+        line('[~] isolated validation started', 'running');
+        await sleep(140);
+        line('[+] proof generated: SQL error-based payload reflected', 'vuln');
+        line('[+] evidence saved: demo-output/exploit-proof.json', 'ok');
+      }
+
+      await sleep(100);
+      line('[+] run finished', 'running');
+      state.runningDemo = false;
+      createPromptInput();
+    }
+
+    function isDemoAllowed(url) {
+      return SAMPLE_SET.has(String(url || '').trim());
+    }
+
+    function parseBugpilotCommand(raw) {
+      const parts = raw.trim().split(/\s+/);
+      const sub = (parts[1] || '').toLowerCase();
+      const target = parts[2] || '';
+      if (sub === 'expoit') return { sub: 'exploit', target };
+      return { sub, target };
+    }
+
+    function execute(raw) {
+      const cmd = raw.trim();
+      if (!cmd) {
+        createPromptInput();
+        return;
+      }
+
+      if (cmd === 'clear') {
+        output.innerHTML = '';
+        createPromptInput();
+        return;
+      }
+      if (cmd === 'status') {
+        line(`backend: ${state.backend || 'none'}`, 'info');
+        line(`connected: ${state.connected}`, state.connected ? 'running' : 'info');
+        line(`busy: ${state.busy || state.runningDemo}`, 'info');
+        createPromptInput();
+        return;
+      }
+      if (cmd.startsWith('connect ')) {
+        connectBackend(cmd.slice('connect '.length).trim());
+        createPromptInput();
+        return;
+      }
+      if (cmd === 'help' || cmd === 'bugpilot --help' || cmd === 'bugpilot -help' || cmd === 'bugpilot help') {
+        line('Use: bugpilot scan|crawl|recon|test|exploit <sample-url>', 'info');
+        line(`Sample URLs: (${SAMPLE_URLS.join(', ')})`, 'info');
+        createPromptInput();
+        return;
+      }
+
+      if (!/^bugpilot\s+/i.test(cmd)) {
+        line('[!] unknown command', 'vuln');
+        createPromptInput();
+        return;
+      }
+
+      const { sub, target } = parseBugpilotCommand(cmd);
+      if (!['scan', 'crawl', 'recon', 'test', 'exploit'].includes(sub)) {
+        line('[!] unsupported subcommand', 'vuln');
+        createPromptInput();
+        return;
+      }
+      if (!target) {
+        line(`[!] missing target URL. Usage: bugpilot ${sub} <url>`, 'vuln');
+        createPromptInput();
+        return;
+      }
+      if (!isDemoAllowed(target)) {
+        line('[!] target blocked in DEMO_MODE. use one sample URL shown above.', 'vuln');
+        createPromptInput();
+        return;
+      }
+
+      line(`[+] ${sub} target: ${target}`, 'running');
+
+      if (state.connected) {
+        const sent = runRemote(cmd);
+        if (!sent) {
+          runDemo(sub, target);
+        }
+        return;
+      }
+      runDemo(sub, target);
+    }
+
+    function attachPromptHandlers(el) {
+      el.addEventListener('keydown', (e) => {
+        if (el !== activeInput) return;
+        if (e.key === 'Enter') {
+          const value = el.value;
+          if (value.trim()) {
+            history.push(value.trim());
+            historyIndex = history.length;
+          }
+          el.readOnly = true;
+          el.classList.add('submitted');
+          activeInput = null;
+          execute(value);
+        } else if (e.key === 'ArrowUp') {
+          if (!history.length) return;
+          historyIndex = Math.max(0, historyIndex - 1);
+          el.value = history[historyIndex] || '';
+          e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+          if (!history.length) return;
+          historyIndex = Math.min(history.length, historyIndex + 1);
+          el.value = history[historyIndex] || '';
+          e.preventDefault();
+        }
+      });
+    }
+
+    (async () => {
+      await loadTerminalConfig();
+      createPromptInput();
+    })();
+  </script>
 </body>
 </html>
