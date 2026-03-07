@@ -182,7 +182,6 @@
       ws: null,
       connected: false,
       backend: '',
-      token: localStorage.getItem('bugpilot_ws_token') || '',
       busy: false,
       pendingCommand: '',
       connectInProgress: false,
@@ -254,10 +253,6 @@
         if (cfg.backend_ws_url) {
           state.backend = normalizeWsUrl(cfg.backend_ws_url);
         }
-        if (!state.token && cfg.runner_token) {
-          state.token = String(cfg.runner_token).trim();
-          localStorage.setItem('bugpilot_ws_token', state.token);
-        }
       } catch (_) {
         // Keep offline demo mode functional even if config fetch fails.
       }
@@ -276,11 +271,7 @@
         try { state.ws.close(); } catch (_) {}
       }
 
-      const finalUrl = state.token
-        ? `${normalized}${normalized.includes('?') ? '&' : '?'}token=${encodeURIComponent(state.token)}`
-        : normalized;
-
-      const ws = new WebSocket(finalUrl);
+      const ws = new WebSocket(normalized);
       state.ws = ws;
       state.backend = normalized;
 

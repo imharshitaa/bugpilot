@@ -20,7 +20,6 @@ MAX_COMMAND_LENGTH = 4096
 SETTINGS = load_yaml(str(ROOT / "config" / "settings.yaml")) or {}
 WEB_TERMINAL = SETTINGS.get("web_terminal", {})
 RUN_TIMEOUT_SECONDS = int(os.getenv("BUGPILOT_RUN_TIMEOUT", "1800"))
-RUNNER_TOKEN = os.getenv("BUGPILOT_RUNNER_TOKEN", WEB_TERMINAL.get("runner_token", "")).strip()
 DEMO_MODE = os.getenv(
     "BUGPILOT_DEMO_MODE",
     str(WEB_TERMINAL.get("demo_mode", True)).lower(),
@@ -180,12 +179,6 @@ async def health():
 @app.websocket("/ws")
 async def ws_terminal(websocket: WebSocket):
     await websocket.accept()
-
-    token = websocket.query_params.get("token", "").strip()
-    if RUNNER_TOKEN and token != RUNNER_TOKEN:
-        await websocket.send_text(json.dumps({"type": "error", "message": "Unauthorized"}))
-        await websocket.close()
-        return
 
     await websocket.send_text(
         json.dumps(
