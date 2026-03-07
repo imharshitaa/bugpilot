@@ -1,52 +1,63 @@
 """
 ssrf.py
 --------
-SSRF detection by sending SAFE internal hostname probes.
-
-HOW IT WORKS:
-1. Append internal-only URLs to parameters (localhost only)
-2. Detect if server tries to fetch them (based on error messages)
-3. Absolutely NO exploitation or external callback usage
+SSRF indicator checks with baseline-aware signal validation.
 """
 
+from core.detection_engine import DetectionEngine
+from models.prompts import EXPLOIT_METHODS, MITIGATIONS, REFERENCES
 from models.severity import get_severity
-from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
-from models.false_positive import is_false_positive
+
 
 def run(endpoints, utils, payload_rules):
     findings = []
     rules = payload_rules["ssrf"]
+    engine = DetectionEngine(utils)
 
     for ep in endpoints:
+        baseline_resp = utils.http_request(ep.url)
+        baseline_text = baseline_resp.text if baseline_resp else ""
+
         for payload in rules["payloads"]:
+            test_urls = engine.build_test_urls(
+                ep.url,
+                payload,
+                preferred_params=["url", "redirect", "next", "dest", "callback"],
+            )
+            for test_url in test_urls:
+                resp = utils.http_request(test_url)
+                if not resp:
+                    continue
 
-            test_url = utils.add_query_params(ep.url, {"url": payload})
+                if not engine.has_new_indicator(
+                    baseline_text,
+                    resp.text,
+                    rules["match_indicators"],
+                ):
+                    continue
 
-            resp = utils.http_request(test_url)
-            if not resp:
-                continue
+                evidence = resp.text[:220]
+                if engine.likely_false_positive(evidence):
+                    continue
 
-            text = resp.text.lower()
+                confidence = 0.75
+                if resp.status_code >= 500:
+                    confidence = 0.85
 
-            for indicator in rules["match_indicators"]:
-                if indicator.lower() in text:
-
-                    evidence = resp.text[:200]
-
-                    if is_false_positive(evidence):
-                        continue
-
-                    findings.append({
+                findings.append(
+                    {
                         "type": "server side request forgery",
                         "cwe": "CWE-918",
                         "severity": get_severity("ssrf"),
                         "endpoint": ep.url,
                         "payload": payload,
                         "evidence": evidence,
+                        "confidence": confidence,
                         "mitigation": MITIGATIONS["ssrf"],
                         "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["ssrf"]),
-                        "references": REFERENCES["ssrf"]
-                    })
-                    break
+                        "references": REFERENCES["ssrf"],
+                    }
+                )
+                break
 
     return findings

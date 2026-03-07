@@ -1,55 +1,63 @@
 """
 file_inclusion_indicator.py
 -----------------------------
-Detects LFI/RFI-style error responses.
-
-HOW IT WORKS:
-1. Use safe file payloads (no real file fetching)
-2. Look for error signatures or stack traces
+LFI/RFI-style indicators with baseline comparison.
 """
 
+from core.detection_engine import DetectionEngine
+from models.prompts import EXPLOIT_METHODS, MITIGATIONS, REFERENCES
 from models.severity import get_severity
-from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
 
 PAYLOADS = [
     "/etc/passwd",
     "file://etc/passwd",
-    "php://filter/convert.base64-encode/resource=index.php"
+    "php://filter/convert.base64-encode/resource=index.php",
 ]
 
 ERROR_SIGS = [
     "failed to open stream",
     "No such file or directory",
     "Warning: include",
-    "Warning: require"
+    "Warning: require",
 ]
+
 
 def run(endpoints, utils, payload_rules):
     findings = []
+    engine = DetectionEngine(utils)
 
     for ep in endpoints:
+        baseline_resp = utils.http_request(ep.url)
+        baseline_text = baseline_resp.text if baseline_resp else ""
+
         for payload in PAYLOADS:
-            test_url = utils.add_query_params(ep.url, {"file": payload})
+            test_urls = engine.build_test_urls(ep.url, payload, preferred_params=["file", "page", "include"])
+            for test_url in test_urls:
+                resp = utils.http_request(test_url)
+                if not resp:
+                    continue
 
-            resp = utils.http_request(test_url)
-            if not resp:
-                continue
+                if not engine.has_new_indicator(baseline_text, resp.text, ERROR_SIGS):
+                    continue
 
-            text = resp.text.lower()
+                evidence = resp.text[:220]
+                if engine.likely_false_positive(evidence):
+                    continue
 
-            for sig in ERROR_SIGS:
-                if sig.lower() in text:
-                    findings.append({
+                findings.append(
+                    {
                         "type": "file_inclusion_indicator",
                         "cwe": "CWE-98",
                         "severity": get_severity("file_inclusion_indicator"),
                         "endpoint": ep.url,
                         "payload": payload,
-                        "evidence": resp.text[:200],
+                        "evidence": evidence,
+                        "confidence": 0.85,
                         "mitigation": MITIGATIONS["file_inclusion_indicator"],
                         "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["file_inclusion_indicator"]),
                         "references": REFERENCES["file_inclusion_indicator"],
-                    })
-                    break
+                    }
+                )
+                break
 
     return findings

@@ -1,15 +1,11 @@
 """
 cors_misconfig.py
 ---------------------
-Detects weak or insecure CORS policies.
-
-HOW IT WORKS:
-1. Send request with an untrusted Origin header
-2. If ACAO is '*' or reflects attacker origin → vulnerability
+Detects actionable CORS misconfiguration patterns.
 """
 
+from models.prompts import EXPLOIT_METHODS, MITIGATIONS, REFERENCES
 from models.severity import get_severity
-from models.prompts import MITIGATIONS, EXPLOIT_METHODS, REFERENCES
 
 
 def run(endpoints, utils, payload_rules):
@@ -21,22 +17,28 @@ def run(endpoints, utils, payload_rules):
         if not resp:
             continue
 
-        origin = resp.headers.get("Access-Control-Allow-Origin")
-        allow_creds = resp.headers.get("Access-Control-Allow-Credentials")
+        origin = (resp.headers.get("Access-Control-Allow-Origin") or "").strip()
+        allow_creds = (resp.headers.get("Access-Control-Allow-Credentials") or "").strip().lower()
 
-        if origin == "*" or origin == attacker_origin:
-            findings.append({
-                "type": "cors_misconfig",
-                "cwe": "CWE-942",
-                "severity": get_severity("cors_misconfig"),
-                "endpoint": ep.url,
-                "payload": "N/A",
-                "evidence": (
-                    f"ACAO={origin}, ACAC={allow_creds}, supplied_origin={attacker_origin}"
-                ),
-                "mitigation": MITIGATIONS["cors_misconfig"],
-                "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["cors_misconfig"]),
-                "references": REFERENCES["cors_misconfig"],
-            })
+        reflected_origin = origin == attacker_origin
+        wildcard_with_creds = origin == "*" and allow_creds == "true"
+
+        # Reduce false positives: only report clearly exploitable or risky combinations.
+        if reflected_origin or wildcard_with_creds:
+            confidence = 0.85 if reflected_origin else 0.75
+            findings.append(
+                {
+                    "type": "cors_misconfig",
+                    "cwe": "CWE-942",
+                    "severity": get_severity("cors_misconfig"),
+                    "endpoint": ep.url,
+                    "payload": "Origin: https://evil.example",
+                    "evidence": f"ACAO={origin}, ACAC={allow_creds}, supplied_origin={attacker_origin}",
+                    "confidence": confidence,
+                    "mitigation": MITIGATIONS["cors_misconfig"],
+                    "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["cors_misconfig"]),
+                    "references": REFERENCES["cors_misconfig"],
+                }
+            )
 
     return findings

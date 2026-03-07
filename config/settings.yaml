@@ -20,6 +20,9 @@ scanner:
   max_endpoints_per_module: 15
   fast_mode: true
   max_payloads_per_test: 2
+  max_params_per_test_fast: 2
+  max_params_per_test_full: 4
+  min_confidence: 0.6
   runtime_log_max_per_module: 20
   skip_static_extensions:
     - ".js"

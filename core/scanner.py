@@ -44,6 +44,7 @@ class Scanner:
         self.max_endpoints_per_module = scanner_cfg.get("max_endpoints_per_module", 15)
         self.fast_mode = bool(scanner_cfg.get("fast_mode", True))
         self.max_payloads_per_test = int(scanner_cfg.get("max_payloads_per_test", 2))
+        self.min_confidence = float(scanner_cfg.get("min_confidence", 0.6))
         self.skip_static_extensions = tuple(
             ext.lower() for ext in scanner_cfg.get("skip_static_extensions", [])
         )
@@ -102,6 +103,13 @@ class Scanner:
                     self.utils.set_active_module(None)
 
             for finding in module_findings:
+                confidence = finding.get("confidence", 0.6)
+                try:
+                    confidence = float(confidence)
+                except Exception:
+                    confidence = 0.6
+                if confidence < self.min_confidence:
+                    continue
                 findings.append(self._enrich_finding(finding, module_name))
 
             if progress_callback:
