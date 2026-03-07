@@ -4,12 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BugPilot</title>
-  <meta http-equiv="refresh" content="0; url=./docs/" />
   <script>
-    window.location.replace('./docs/');
+    (function redirectToDocs() {
+      var p = window.location.pathname || "/";
+      var host = window.location.hostname || "";
+      var isGitHubPages = host.endsWith(".github.io");
+      var repoBase = isGitHubPages ? "/bugpilot" : "";
+      var target = repoBase + "/docs/";
+      window.location.replace(target);
+    })();
   </script>
 </head>
 <body>
-  <p>Redirecting to <a href="./docs/">BugPilot terminal demo</a>...</p>
+  <p>Redirecting to <a href="/bugpilot/docs/">BugPilot terminal demo</a>...</p>
 </body>
 </html>
