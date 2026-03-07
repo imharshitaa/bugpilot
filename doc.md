@@ -61,8 +61,8 @@ BugPilot is a command-orchestrated security testing framework designed to:
 - Contains markdown narrative + machine-readable data for automation.
 
 ### Demo and deployment files
-- `docs/index.html`: shell-style demo terminal UI.
-- `docs/terminal-config.json`: demo terminal backend config.
+- `demo/index.html`: shell-style demo terminal UI.
+- `demo/terminal-config.json`: demo terminal backend config.
 - `.github/workflows/pages.yml`: GitHub Pages deployment workflow.
 - `backend/server.py`: optional WebSocket runner for remote command execution.
 
