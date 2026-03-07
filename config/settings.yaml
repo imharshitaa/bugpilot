@@ -50,6 +50,17 @@ ci:
 lab:
   docker_auto_validation: false
 
+web_terminal:
+  backend_ws_url: ""
+  runner_token: ""
+  demo_mode: true
+  demo_allowed_targets:
+    - "http://testphp.vulnweb.com"
+    - "http://testhtml5.vulnweb.com"
+    - "http://zero.webappsecurity.com"
+    - "http://demo.testfire.net"
+    - "https://juice-shop.herokuapp.com"
+
 debug:
   verbose: false
 

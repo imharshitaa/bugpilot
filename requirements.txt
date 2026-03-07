@@ -16,6 +16,9 @@ lxml>=4.9,<5.0
 # Optional: If you want colored terminal output in future (harmless)
 rich>=13.0,<14.0
 
+# Backend runner API (Pages terminal bridge)
+fastapi>=0.112,<1.0
+uvicorn>=0.30,<1.0
 
 
 
