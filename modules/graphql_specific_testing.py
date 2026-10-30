@@ -40,6 +40,7 @@ def run(endpoints, utils, payload_rules):
                     "endpoint": ep.url,
                     "payload": query,
                     "evidence": resp.text[:220],
+                    "confidence": 0.85,
                     "mitigation": MITIGATIONS["graphql_specific_testing"],
                     "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["graphql_specific_testing"]),
                     "references": REFERENCES["graphql_specific_testing"],

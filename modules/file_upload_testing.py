@@ -31,7 +31,13 @@ def run(endpoints, utils, payload_rules):
                         "severity": get_severity("file_upload_testing"),
                         "endpoint": ep.url,
                         "payload": "multipart/form-data with unrestricted file type",
-                        "evidence": "File upload input found without explicit accept/type restrictions.",
+                        "evidence": (
+                            "File upload input found without an explicit 'accept' attribute. "
+                            "This is informational only: a missing client-side 'accept' hint is "
+                            "not itself a server-side control and is trivially bypassed, so this "
+                            "does not confirm the server accepts dangerous file types."
+                        ),
+                        "confidence": 0.4,
                         "mitigation": MITIGATIONS["file_upload_testing"],
                         "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["file_upload_testing"]),
                         "references": REFERENCES["file_upload_testing"],

@@ -6,9 +6,16 @@ http:
   retries: 1
   retry_sleep_seconds: 1
   follow_redirects: true
+  max_redirects: 5
   verify_tls: true
   user_agent: "BugPilotScanner/1.0"
   cache_enabled: true
+
+security:
+  # Block requests to private/loopback/link-local/metadata/reserved IP
+  # ranges unless the host was explicitly authorized (config/scope.txt or
+  # --authorize). See core/ssrf_guard.py.
+  block_private_targets: true
 
 auth:
   enabled: false

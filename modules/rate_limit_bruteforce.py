@@ -32,6 +32,7 @@ def run(endpoints, utils, payload_rules):
                     "endpoint": ep.url,
                     "payload": f"{burst_count} rapid GET requests",
                     "evidence": f"{success_hits}/{burst_count} successful responses with no throttling.",
+                    "confidence": 0.55,
                     "mitigation": MITIGATIONS["rate_limit_bruteforce"],
                     "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["rate_limit_bruteforce"]),
                     "references": REFERENCES["rate_limit_bruteforce"],

@@ -44,6 +44,7 @@ def run(endpoints, utils, payload_rules):
                     "endpoint": ep.url,
                     "payload": "N/A",
                     "evidence": evidence,
+                    "confidence": 0.4,
                     "mitigation": MITIGATIONS["auth_bypass"],
                     "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["auth_bypass"]),
                     "references": REFERENCES["auth_bypass"]
