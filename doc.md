@@ -1,134 +1,185 @@
 # BugPilot Technical Blueprint
 
 ## 1) System Intent
-BugPilot is a command-orchestrated security testing framework designed to:
-- provide reproducible offensive-security workflows,
-- support extensible module/plugin testing,
-- produce machine- and human-consumable artifacts,
-- integrate into local developer loops and CI/CD gates.
+
+BugPilot is a command-orchestrated application-security testing framework designed to:
+- enforce explicit authorization/scope before any request is sent,
+- guard against SSRF (including via redirects) for any non-authorized target,
+- run a reproducible recon -> crawl -> module-dispatch -> risk-score -> report pipeline,
+- support an extensible plugin/module system,
+- produce machine- and human-consumable artifacts (Markdown, JSON, SARIF),
+- integrate into CI/CD as a real, verifiable security gate.
 
 ## 2) End-to-End Execution Flow
+
 1. User invokes CLI command (`bugpilot scan|crawl|recon|test|exploit`).
-2. CLI parser normalizes command flags and mode.
-3. Workflow engine loads configuration and enabled modules.
-4. Recon and crawler establish target context and endpoint inventory.
-5. Scanner dispatches module/plugin checks by category.
-6. Findings are normalized, risk-scored, and enriched with evidence fields.
-7. Reporter writes run artifacts to versioned output directory.
-8. Optional differential and replay logic compare or reproduce prior states.
+2. `core/scope.py`'s `authorize_targets()` checks each target host against `config/scope.txt`;
+   unauthorized hosts require `--authorize` (headless) or an interactive y/n confirmation, else
+   `AuthorizationError` aborts before any request is made.
+3. `Utils.set_authorized_hosts()` stores the authorized set; every subsequent
+   `Utils.http_request()` call (and every redirect hop it follows) is revalidated through
+   `core/ssrf_guard.py` against that set.
+4. `core/recon.py` and `core/crawler.py` establish target context and endpoint inventory.
+5. `core/scanner.py` dispatches enabled modules (via `core/plugin_manager.py`) against discovered
+   endpoints, filters findings below `min_confidence`, enriches them with risk scores
+   (`core/risk_scorer.py`) and deduplicates (`core/validator.py`).
+6. `core/reporter.py` writes run artifacts to a versioned output directory.
+7. Optional differential (`core/diff_scan.py`) and replay logic compare or reproduce prior runs.
 
 ## 3) Folder and File Significance
 
 ### Root runtime entry points
-- `bugpilot`: shell launcher for command execution.
-- `bugpilot_cli.py`: main CLI command contract, command routing, export handling.
-- `main.py`: orchestration entry for interactive/headless execution.
-- `pyproject.toml`: package metadata and console script registration.
-- `requirements.txt`: Python dependency list.
+- `bugpilot_cli.py`: CLI command routing, export handling, and the `-authorize`/`--authorize`
+  flag for `recon`/`crawl` (which run in-process); `scan`/`test`/`exploit` shell out to `main.py`.
+- `main.py`: orchestration entry for interactive/headless execution; owns the `--headless`,
+  `--authorize`, `--targets`, `--modules`, `--formats`, `--fail-on-findings`, and related flags.
+- `pyproject.toml`: package metadata, console script registration, and the `test`/`demo` optional
+  dependency groups (`pip install -e .[test,demo]`).
+- `requirements.txt`: secondary/legacy dependency list, kept in sync with `pyproject.toml`.
 
 ### Core engine (`core/`)
-- `core/workflow.py`: high-level workflow helpers and command-mode control.
-- `core/scanner.py`: scan loop, module dispatch, confidence/fast-mode controls.
+- `core/scope.py`: scope-file parsing and `authorize_targets()`/`AuthorizationError`.
+- `core/ssrf_guard.py`: hostname resolution and private/loopback/link-local/metadata/
+  multicast/reserved IP rejection for non-authorized hosts.
+- `core/utils.py`: the single HTTP chokepoint (`Utils.http_request()`) — SSRF validation, manual
+  bounded redirect-following with per-hop revalidation, retries, response caching.
+- `core/workflow.py`: interactive prompt flow for collecting scan intent/test case selection.
+- `core/scanner.py`: scan loop, module dispatch, confidence gating.
 - `core/crawler.py`: URL endpoint discovery and crawl constraints.
-- `core/recon.py`: target intelligence collection (headers, DNS/IP, TLS summary).
+- `core/recon.py`: target header/intelligence collection.
 - `core/plugin_manager.py`: built-in/external plugin loading and execution contract.
-- `core/detection_engine.py`: shared finding detection heuristics.
-- `core/risk_scorer.py`: risk score/rating derivation logic.
+- `core/detection_engine.py`: shared finding-detection heuristics (reflected-value checks,
+  response-diffing, false-positive delegation).
+- `core/risk_scorer.py`: risk score/rating derivation (severity + confidence + evidence length +
+  sensitive-endpoint keyword boost).
+- `core/validator.py`: finding deduplication and evidence trimming.
+- `core/diff_scan.py`: baseline-vs-current finding comparison.
 - `core/reporter.py`: markdown/json/sarif artifact generation.
-- `core/lab_validator.py`: isolated validation logic for selected finding categories.
-- `core/utils.py`: shared utility helpers (I/O, parsing, config helpers).
+- `core/lab_validator.py`: guidance text for manually reproducing a finding in a controlled lab.
 
 ### Test modules (`modules/`)
-- Category implementations for web/API vulnerabilities.
-- Each module returns structured finding dictionaries consumed by scanner/reporter.
-- Module enablement and metadata controlled via `config/modules.yaml`.
+- One file per vulnerability category; each `run(endpoints, utils, payload_rules)` returns a list
+  of finding dicts. Every module sets its own `confidence` based on how certain its detection
+  method is — see README.md's "Detection confidence" table for which modules are heuristic-only
+  and therefore filtered out by the default `min_confidence`.
+- Module enablement/metadata is controlled via `config/modules.yaml`.
 
 ### Models (`models/`)
-- Prompt/data contracts and typed structures used across the workflow.
-
-### Payloads (`payloads/`)
-- Curated payload and pattern files for category-specific testing.
+- `models/endpoint_class.py`: the `Endpoint` data contract passed between crawler/scanner/modules.
+- `models/false_positive.py`: shared `is_false_positive()` heuristic used by several modules to
+  filter weak evidence before reporting.
 
 ### Configuration (`config/`)
-- `settings.yaml`: scanner/runtime/web-terminal defaults.
-- `modules.yaml`: module definitions, state, descriptions.
-- `plugins.yaml`: external plugin declarations.
+- `settings.yaml`: scanner profile (`min_confidence`, `max_redirects`, timeouts, retries, caching).
+- `scope.txt`: pre-authorized target allowlist (real allowlist, enforced by `core/scope.py`).
+- `modules.yaml`: built-in module registry.
+- `plugins.yaml`: external plugin registry.
 - `test_cases.yaml`: higher-level test category map.
 - `payload_rules.yaml`: payload selection and detection hints.
 
 ### Reporting (`reports/`)
-- Persisted run outputs under timestamped directories.
-- Contains markdown narrative + machine-readable data for automation.
+- Persisted run outputs under timestamped directories: markdown narrative plus
+  machine-readable JSON/SARIF for automation.
+
+### Bundled lab app (`labapp/`)
+- A small Flask app with intentional, well-understood vulnerabilities, used by the test suite and
+  CI as a real, local, safe scan target. Run standalone with `python -m labapp.app [port]`.
+
+### Tests (`tests/`)
+- Full pytest suite: SSRF guard, scope/authorization, HTTP/redirect handling, each module, risk
+  scoring, deduplication, diff scanning, plugin loading, reporting, CLI exit codes, and a real
+  end-to-end scan against `labapp`.
 
 ### Demo and deployment files
-- `demo/index.html`: shell-style demo terminal UI.
-- `demo/terminal-config.json`: demo terminal backend config.
-- `.github/workflows/pages.yml`: GitHub Pages deployment workflow.
-- `backend/server.py`: optional WebSocket runner for remote command execution.
+- `demo/index.html`: terminal-style demo UI with a persistent banner stating that, without a
+  configured backend, every command is a scripted simulation and makes no real network requests.
+- `demo/terminal-config.json`: demo terminal backend config (optional `backend_ws_url`).
+- `.github/workflows/ci.yml`: installs the project, runs `pytest`, then runs a real authorized
+  headless scan against `labapp` with `--fail-on-findings`, and uploads `findings.json`/
+  `results.sarif` as artifacts.
+- `.github/workflows/pages.yml`: GitHub Pages deployment for the demo page.
+- `backend/server.py`: optional WebSocket bridge for the demo page's live mode.
 
 ## 4) Command Semantics
-- `scan`: complete testing lifecycle with consolidated findings.
-- `crawl`: endpoint and API surface mapping.
-- `recon`: target metadata and technical fingerprinting.
-- `test`: vulnerability-category execution profile.
-- `exploit`: controlled exploit/lab validation path for evidence.
-- `expoit`: compatibility alias to `exploit`.
+
+- `scan`: full module run with markdown/json/sarif output.
+- `crawl`: endpoint/API surface mapping.
+- `recon`: target header/metadata collection.
+- `test`: same module run as `scan`, with `--validate-findings none`.
+- `exploit`: same module run as `scan`, json-only output, `--validate-findings all`.
+- `expoit`: alias for `exploit`.
 
 Export semantics:
-- `-export` writes JSON output using default path.
-- `-export <path>` writes JSON output to explicit path.
+- `-export` writes JSON output to a default `reports/output/` path.
+- `-export <path>` writes JSON output to an explicit path.
 
 ## 5) Data Contracts (Findings)
-A finding is expected to include fields such as:
-- `type`
-- `severity`
-- `title`/`description`
-- `evidence`
-- `endpoint`/`source`
-- `risk_score` and/or `risk_rating`
-- optional validation metadata
+
+A finding dict includes:
+- `type`, `normalized_type`, `module`
+- `severity`, `confidence`
+- `endpoint`, `payload`, `evidence`
+- `risk_score`, `risk_rating`, `risk`, `mitigation`, `references`
+- `vulnerability_point`, `target_response` (status/content-type/server/length snapshot)
+- `lab_validation` (guidance text for manual reproduction)
 
 ## 6) Quality and False-Positive Controls
-- Minimum confidence gating in scanner profile.
-- Fast-mode payload/parameter caps to balance speed and signal.
-- Differential scan support against baselines for regression visibility.
-- Replayable sessions for reproducibility and investigation.
 
-## 7) CI/CD Integration Blueprint
-Recommended pipeline pattern:
-1. Install project and dependencies.
-2. Run headless scan with JSON/SARIF outputs.
-3. Enforce policy via `--fail-on-findings`.
-4. Archive run artifacts.
-5. Compare against baseline where needed.
+- `min_confidence` gating in `config/settings.yaml` (default `0.6`) — genuinely filters output,
+  since every module now sets a calibrated `confidence` value. See README.md for the full table.
+- Several modules additionally filter through `models/false_positive.py` before reporting.
+- Differential scan support (`core/diff_scan.py`) against a baseline `findings.json` for
+  regression visibility.
+- Replayable sessions (`--replay-session`) for reproducibility.
+- No module reports a finding from a keyword/string match alone — detection requires an observed
+  behavioral difference (reflection, status/body diff, redirect target, missing header, etc.).
 
-Example:
+## 7) CI/CD
+
+`.github/workflows/ci.yml` (the only workflow besides `pages.yml`):
+1. `pip install -e .[test,demo]`
+2. `pytest -q`
+3. Start `labapp` locally on an ephemeral/fixed port.
+4. Run a real authorized headless scan against it with `--fail-on-findings`, treating exit code
+   `2` (findings detected — expected, since `labapp` is intentionally vulnerable) as success and
+   any other non-zero code as a real failure.
+5. Upload `findings.json`/`results.sarif` as build artifacts.
+
+Equivalent local run:
+
 ```bash
-python3 main.py --headless \
-  --targets https://target \
+python -m labapp.app &
+python3 main.py --headless --authorize \
+  --targets http://127.0.0.1:5000/ \
   --modules all \
   --formats json,sarif \
   --fail-on-findings
 ```
 
 ## 8) GitHub Pages Demo Access
+
 - Public URL: `https://imharshitaa.github.io/bugpilot/demo/`
+- Default mode has no backend connected and is a scripted simulation only (see the banner on the
+  page itself).
 - Local preview:
 ```bash
 python3 -m http.server 8080 --bind 127.0.0.1 --directory .
 ```
-Then open:
-- `http://127.0.0.1:8080`
+Then open `http://127.0.0.1:8080`.
 
 ## 9) Project Setup Steps (Canonical)
+
 ```bash
 git clone https://github.com/imharshitaa/bugpilot.git
 cd bugpilot
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+pip install -e .[test,demo]
 ```
 
 ## 10) Security and Governance Note
-BugPilot must only be executed against explicitly authorized assets.
+
+BugPilot enforces an authorization/scope check and an SSRF guard before any request is sent, but
+these are safety rails against *accidental* out-of-scope testing — they are not a substitute for
+having real, explicit authorization to test a target. Only run BugPilot against systems you are
+authorized to test.

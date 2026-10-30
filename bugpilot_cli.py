@@ -10,6 +10,7 @@ import sys
 
 from core.crawler import Crawler
 from core.recon import Recon
+from core.scope import AuthorizationError, authorize_targets
 from core.utils import Utils
 
 
@@ -134,13 +135,31 @@ def _scan_command(scan_args):
     return code
 
 
-def _recon_command(target, export_value=""):
+def _authorize_or_fail(target, authorize):
+    try:
+        authorized_hosts = authorize_targets(
+            [target],
+            confirm=authorize,
+            interactive=True,
+        )
+    except AuthorizationError as exc:
+        print(f"[!] {exc}")
+        return None
+    return authorized_hosts
+
+
+def _recon_command(target, export_value="", authorize=False):
     target = _sanitize_target(target)
     if not target:
         print("[!] recon requires a valid target URL.")
         return 1
 
+    authorized_hosts = _authorize_or_fail(target, authorize)
+    if authorized_hosts is None:
+        return 1
+
     utils = Utils()
+    utils.set_authorized_hosts(authorized_hosts)
     recon = Recon(utils)
     result = recon.analyze_headers(target)
     if not result:
@@ -156,13 +175,18 @@ def _recon_command(target, export_value=""):
     return 0
 
 
-def _crawl_command(target, export_value=""):
+def _crawl_command(target, export_value="", authorize=False):
     target = _sanitize_target(target)
     if not target:
         print("[!] crawl requires a valid target URL.")
         return 1
 
+    authorized_hosts = _authorize_or_fail(target, authorize)
+    if authorized_hosts is None:
+        return 1
+
     utils = Utils()
+    utils.set_authorized_hosts(authorized_hosts)
     crawler = Crawler(utils)
     urls = crawler.crawl(target)
     print(f"[+] Endpoints discovered: {len(urls)}")
@@ -240,10 +264,18 @@ def cli():
     recon_parser = subparsers.add_parser("recon", help="Run recon on target URL")
     recon_parser.add_argument("target", help="Target URL")
     recon_parser.add_argument("-export", dest="export", nargs="?", const="true", default=None, help="Export JSON (optional file path)")
+    recon_parser.add_argument(
+        "-authorize", "--authorize", dest="authorize", action="store_true",
+        help="Confirm you are authorized to test this target if it is not in config/scope.txt.",
+    )
 
     crawl_parser = subparsers.add_parser("crawl", help="Run crawler on target URL")
     crawl_parser.add_argument("target", help="Target URL")
     crawl_parser.add_argument("-export", dest="export", nargs="?", const="true", default=None, help="Export JSON (optional file path)")
+    crawl_parser.add_argument(
+        "-authorize", "--authorize", dest="authorize", action="store_true",
+        help="Confirm you are authorized to test this target if it is not in config/scope.txt.",
+    )
 
     test_parser = subparsers.add_parser("test", help="Test target for vulnerabilities")
     test_parser.add_argument("target", help="Target URL")
@@ -272,9 +304,9 @@ def cli():
     if parsed.command == "scan":
         return _scan_command(parsed.args)
     if parsed.command == "recon":
-        return _recon_command(parsed.target, parsed.export)
+        return _recon_command(parsed.target, parsed.export, parsed.authorize)
     if parsed.command == "crawl":
-        return _crawl_command(parsed.target, parsed.export)
+        return _crawl_command(parsed.target, parsed.export, parsed.authorize)
     if parsed.command == "test":
         args, export_enabled, export_value = _extract_export(parsed.args)
         return _test_like_command("test", parsed.target, args, export_enabled, export_value)

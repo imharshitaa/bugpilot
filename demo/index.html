@@ -31,6 +31,18 @@
       background-size: 100% 28px, 28px 100%, cover;
       padding: 12px;
     }
+    .disclaimer {
+      width: min(1180px, 94vw);
+      margin: 0 auto 10px;
+      padding: 10px 14px;
+      border: 1px solid #5c4413;
+      border-radius: 10px;
+      background: #1a1405;
+      color: var(--amber);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .disclaimer strong { color: #ffe39a; }
     .terminal {
       width: min(1180px, 94vw);
       margin: 0 auto;
@@ -145,6 +157,13 @@
   </style>
 </head>
 <body>
+  <div class="disclaimer">
+    <strong>Demo notice:</strong> by default this page has no backend connected, so every command
+    below is a scripted simulation for product showcase only &mdash; no real scanning, crawling, or
+    network requests occur. For a genuine scan, run the CLI locally against a target you are
+    authorized to test (see README.md), ideally the bundled local vulnerable app
+    (<code>python -m labapp.app</code>), e.g. <code>bugpilot scan http://127.0.0.1:5000 --authorize</code>.
+  </div>
   <div class="terminal">
     <div class="bar">
       <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>

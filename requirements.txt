@@ -1,7 +1,11 @@
+# Core runtime dependencies. For development, install the project itself
+# instead of this file directly: `pip install -e .[test,demo]` (see
+# pyproject.toml's [project.optional-dependencies]).
+
 # Core HTTP library
 requests>=2.28,<3.0
 
-# HTML parsing
+# HTML parsing (uses the stdlib html.parser backend, not lxml)
 beautifulsoup4>=4.11,<5.0
 
 # YAML config loading
@@ -10,18 +14,13 @@ PyYAML>=6.0,<7.0
 # For URL parsing & crawler reliability
 urllib3>=2.0,<3.0
 
-# For handling HTML character sets & parsing safety
-lxml>=4.9,<5.0
-
-# Optional: If you want colored terminal output in future (harmless)
+# Terminal output formatting (CLI tables/panels)
 rich>=13.0,<14.0
 
-# Backend runner API (Pages terminal bridge)
+# --- optional: demo backend bridge (web_terminal/Pages live mode) ---
 fastapi>=0.112,<1.0
 uvicorn>=0.30,<1.0
 
-
-
-
-
-
+# --- optional: test suite (pytest + bundled local vulnerable lab app) ---
+pytest>=7.0
+Flask>=3.0

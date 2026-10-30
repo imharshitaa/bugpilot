@@ -44,6 +44,7 @@ def run(endpoints, utils, payload_rules):
                         "endpoint": ep.url,
                         "payload": token[:25] + "...",
                         "evidence": f"JWT header algorithm appears weak: alg={alg}",
+                        "confidence": 0.8,
                         "mitigation": MITIGATIONS["jwt_validation_weaknesses"],
                         "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["jwt_validation_weaknesses"]),
                         "references": REFERENCES["jwt_validation_weaknesses"],
