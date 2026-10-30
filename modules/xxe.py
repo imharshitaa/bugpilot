@@ -1,5 +1,6 @@
 """XXE indicator checks via safe XML parser probes."""
 
+from models.false_positive import is_false_positive
 from models.prompts import EXPLOIT_METHODS, MITIGATIONS, REFERENCES
 from models.severity import get_severity
 
@@ -24,19 +25,26 @@ def run(endpoints, utils, payload_rules):
             continue
 
         body = resp.text.lower()
-        if any(sig in body for sig in signatures):
-            findings.append(
-                {
-                    "type": "xxe",
-                    "cwe": "CWE-611",
-                    "severity": get_severity("xxe"),
-                    "endpoint": ep.url,
-                    "payload": "XML entity probe",
-                    "evidence": resp.text[:220],
-                    "mitigation": MITIGATIONS["xxe"],
-                    "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["xxe"]),
-                    "references": REFERENCES["xxe"],
-                }
-            )
+        if not any(sig in body for sig in signatures):
+            continue
+
+        evidence = resp.text[:220]
+        if is_false_positive(evidence):
+            continue
+
+        findings.append(
+            {
+                "type": "xxe",
+                "cwe": "CWE-611",
+                "severity": get_severity("xxe"),
+                "endpoint": ep.url,
+                "payload": "XML entity probe",
+                "evidence": evidence,
+                "confidence": 0.8,
+                "mitigation": MITIGATIONS["xxe"],
+                "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["xxe"]),
+                "references": REFERENCES["xxe"],
+            }
+        )
 
     return findings

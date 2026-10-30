@@ -13,9 +13,12 @@ dependencies = [
   "beautifulsoup4>=4.11,<5.0",
   "PyYAML>=6.0,<7.0",
   "urllib3>=2.0,<3.0",
-  "lxml>=4.9,<5.0",
   "rich>=13.0,<14.0",
 ]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0", "Flask>=3.0"]
+demo = ["fastapi>=0.112,<1.0", "uvicorn>=0.30,<1.0"]
 
 [project.scripts]
 bugpilot = "bugpilot_cli:cli"

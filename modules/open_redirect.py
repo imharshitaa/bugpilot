@@ -34,6 +34,7 @@ def run(endpoints, utils, payload_rules):
                     "endpoint": ep.url,
                     "payload": test_redirect,
                     "evidence": f"Redirected to {final}",
+                    "confidence": 0.8,
                     "mitigation": MITIGATIONS["open_redirect"],
                     "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["open_redirect"]),
                     "references": REFERENCES["open_redirect"],

@@ -18,7 +18,7 @@ def run(endpoints, utils, payload_rules):
 
     for ep in endpoints:
         resp = utils.http_request(ep.url)
-        if not resp:
+        if not resp or resp.status_code >= 400:
             continue
 
         for header in rules["headers_to_check"]:
@@ -31,6 +31,7 @@ def run(endpoints, utils, payload_rules):
                     "endpoint": ep.url,
                     "payload": "N/A",
                     "evidence": f"Missing header: {header}",
+                    "confidence": 0.9,
                     "mitigation": MITIGATIONS["misconfig"],
                     "exploitation_methods": "\n- " + "\n- ".join(EXPLOIT_METHODS["misconfig"]),
                     "references": REFERENCES["misconfig"]

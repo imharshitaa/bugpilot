@@ -16,6 +16,7 @@ from core.lab_validator import LabValidator
 from core.recon import Recon
 from core.reporter import Reporter
 from core.scanner import Scanner
+from core.scope import AuthorizationError, authorize_targets
 from core.utils import Utils
 from core.validator import Validator
 from core.workflow import Workflow
@@ -85,6 +86,15 @@ def load_replay_session(path):
 def parse_args():
     parser = argparse.ArgumentParser(description="BugPilot scanner")
     parser.add_argument("--headless", action="store_true", help="Run in CI/CD non-interactive mode.")
+    parser.add_argument(
+        "--authorize",
+        action="store_true",
+        help=(
+            "Confirm you are authorized to test targets not already listed in "
+            "config/scope.txt. Required in --headless mode for any out-of-scope "
+            "target; interactive mode prompts for confirmation instead."
+        ),
+    )
     parser.add_argument("--target-type", default="web_app", help="Target type for headless mode.")
     parser.add_argument("--targets", default="", help="Comma separated targets for headless mode.")
     parser.add_argument("--modules", default="all", help="Comma separated modules or 'all'.")
@@ -363,6 +373,8 @@ def print_request_event(event):
             print(f"    [{module}] {method} {url} -> {status_code}{block_tag}")
         elif outcome == "timeout":
             print(f"    [{module}] {method} {url} -> TIMEOUT")
+        elif outcome == "blocked":
+            print(f"    [{module}] {method} {url} -> BLOCKED (scope/SSRF guard)")
         else:
             print(f"    [{module}] {method} {url} -> ERROR")
         return
@@ -371,6 +383,13 @@ def print_request_event(event):
         console.print(
             f"    [bold magenta][TIMEOUT][/bold magenta] "
             f"[dim]{module}[/dim] [cyan]{method}[/cyan] [white]{url}[/white]"
+        )
+        return
+    if outcome == "blocked":
+        console.print(
+            f"    [bold red][BLOCKED][/bold red] "
+            f"[dim]{module}[/dim] [cyan]{method}[/cyan] [white]{url}[/white] "
+            f"[dim](scope/SSRF guard)[/dim]"
         )
         return
     if outcome == "error":
@@ -532,7 +551,27 @@ def main():
             )
         else:
             print("[!] No targets found. Add URLs in config/scope.txt or enter them when prompted.")
-        return
+        return 2
+
+    lab_environment_url = run_context.get("lab_environment", "")
+    authorization_candidates = list(targets)
+    if isinstance(lab_environment_url, str) and lab_environment_url.startswith(("http://", "https://")):
+        authorization_candidates.append(lab_environment_url)
+
+    try:
+        authorized_hosts = authorize_targets(
+            authorization_candidates,
+            confirm=args.headless and args.authorize,
+            interactive=not args.headless,
+        )
+    except AuthorizationError as exc:
+        if RICH_AVAILABLE:
+            console.print(f"[bold red][!][/bold red] {exc}")
+        else:
+            print(f"[!] {exc}")
+        return 2
+
+    utils.set_authorized_hosts(authorized_hosts)
 
     if RICH_AVAILABLE and not args.headless:
         context_table = Table(title="Run Context", style="green")

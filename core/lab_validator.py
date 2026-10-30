@@ -5,6 +5,8 @@ from urllib.parse import urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
+from modules.csrf import CSRF_FIELD_NAMES
+
 
 class LabValidator:
     def __init__(self, utils, payload_rules, docker_auto_validation=False):
@@ -88,7 +90,11 @@ class LabValidator:
             forms = soup.find_all("form")
             missing = 0
             for form in forms:
-                if not form.find("input", {"name": "csrf_token"}):
+                has_token = any(
+                    (field.get("name") or "").strip().lower() in CSRF_FIELD_NAMES
+                    for field in form.find_all(["input", "textarea"])
+                )
+                if not has_token:
                     missing += 1
             return missing > 0, f"Forms missing CSRF token in lab: {missing}"
         if vuln_type == "cors_misconfig":

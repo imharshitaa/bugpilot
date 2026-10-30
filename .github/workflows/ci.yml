@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install BugPilot with test/demo extras
+        run: pip install -e .[test,demo]
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Start local vulnerable lab app
+        run: |
+          python -m labapp.app 5000 &
+          echo "LABAPP_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 20); do
+            curl -sf http://127.0.0.1:5000/ >/dev/null && break
+            sleep 0.5
+          done
+
+      - name: Run authorized headless scan against the local lab app
+        # labapp is intentionally vulnerable, so --fail-on-findings is expected
+        # to exit 2 here -- that's proof the gate works, not a CI failure.
+        # Any other non-zero exit code (crash, bad args, etc.) is a real failure.
+        run: |
+          set +e
+          python3 main.py --headless --authorize \
+            --targets http://127.0.0.1:5000/ \
+            --modules all \
+            --formats json,sarif \
+            --fail-on-findings
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
+            echo "Unexpected exit code from main.py: $code"
+            exit "$code"
+          fi
+          echo "Scan completed with exit code $code (2 = findings detected, expected against labapp)."
+
+      - name: Stop local vulnerable lab app
+        if: always()
+        run: kill "$LABAPP_PID" || true
+
+      - name: Upload scan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bugpilot-scan-results
+          path: |
+            reports/output/**/findings.json
+            reports/output/**/results.sarif
