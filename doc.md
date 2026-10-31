@@ -90,15 +90,21 @@ BugPilot is a command-orchestrated application-security testing framework design
   scoring, deduplication, diff scanning, plugin loading, reporting, CLI exit codes, and a real
   end-to-end scan against `labapp`.
 
-### Demo and deployment files
-- `demo/index.html`: terminal-style demo UI with a persistent banner stating that, without a
-  configured backend, every command is a scripted simulation and makes no real network requests.
-- `demo/terminal-config.json`: demo terminal backend config (optional `backend_ws_url`).
+### Product page and deployment files
+- `product-page/index.html`, `product-page/styles.css`, `product-page/app.js`: the public product
+  page — overview, detection modules, authorization/SSRF model, example finding/report shapes,
+  architecture, install instructions, and an embedded terminal. The terminal is a scripted
+  simulation with a persistent banner stating that it makes no real network requests and does not
+  invoke the real scanner.
 - `.github/workflows/ci.yml`: installs the project, runs `pytest`, then runs a real authorized
   headless scan against `labapp` with `--fail-on-findings`, and uploads `findings.json`/
   `results.sarif` as artifacts.
-- `.github/workflows/pages.yml`: GitHub Pages deployment for the demo page.
-- `backend/server.py`: optional WebSocket bridge for the demo page's live mode.
+- `.github/workflows/pages.yml`: GitHub Pages deployment for the product page.
+- `backend/server.py`: an optional, independent WebSocket bridge that runs real `bugpilot_cli.py`
+  commands over a socket (with its own demo-target guard rail, `config/settings.yaml`'s
+  `web_terminal` section). It is not wired into the public product page — the embedded terminal
+  there is simulation-only by design — but remains available for anyone who wants to self-host a
+  live-connected frontend against it.
 
 ## 4) Command Semantics
 
@@ -156,16 +162,16 @@ python3 main.py --headless --authorize \
   --fail-on-findings
 ```
 
-## 8) GitHub Pages Demo Access
+## 8) GitHub Pages Product Page Access
 
-- Public URL: `https://imharshitaa.github.io/bugpilot/demo/`
-- Default mode has no backend connected and is a scripted simulation only (see the banner on the
-  page itself).
+- Public URL: `https://imharshitaa.github.io/bugpilot/product-page/`
+- The embedded terminal on the page is a scripted simulation only — no backend connection, no
+  network requests (see the banner on the page itself).
 - Local preview:
 ```bash
 python3 -m http.server 8080 --bind 127.0.0.1 --directory .
 ```
-Then open `http://127.0.0.1:8080`.
+Then open `http://127.0.0.1:8080/product-page/`.
 
 ## 9) Project Setup Steps (Canonical)
 
