@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BugPilot — Authorized Web/API Security Assessment CLI</title>
+<meta name="description" content="BugPilot is a modular, open-source CLI for authorized web and API security testing: scope/authorization enforcement, SSRF-guarded HTTP, 17 detection modules, risk scoring, and Markdown/JSON/SARIF reporting." />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="dot"></span>BugPilot</div>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#capabilities">Capabilities</a>
+      <a href="#scanning">Scanning</a>
+      <a href="#authorization">Authorization</a>
+      <a href="#ssrf">SSRF &amp; Confidence</a>
+      <a href="#findings">Findings</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#install">Install</a>
+      <a href="#terminal">Terminal (Simulated)</a>
+    </div>
+    <a class="nav-gh" href="https://github.com/imharshitaa/bugpilot" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</nav>
+
+<header class="hero" id="overview">
+  <div class="hero-notice">⚠ For authorized security testing only — see the notice in the footer.</div>
+  <h1>A modular CLI for<br /><span>authorized</span> web &amp; API security assessments.</h1>
+  <p class="hero-sub">
+    BugPilot runs recon → crawl → module-based vulnerability checks → risk scoring → reporting
+    against targets you are explicitly authorized to test. It enforces scope and SSRF protection
+    before a single request goes out, and ships with a bundled vulnerable Flask app so you can try
+    it safely without touching any external target.
+  </p>
+  <div class="hero-meta">
+    <span>Python CLI · <code>pip install -e .[test,demo]</code></span>
+    <span>17 detection modules</span>
+    <span>Markdown / JSON / SARIF reports</span>
+    <span>105 pytest cases, incl. a real scan against the bundled lab app</span>
+  </div>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="https://github.com/imharshitaa/bugpilot" target="_blank" rel="noopener">View on GitHub</a>
+    <a class="btn btn-ghost" href="#install">Quick start ↓</a>
+    <a class="btn btn-ghost" href="#terminal">Simulated terminal ↓</a>
+  </div>
+</header>
+
+<section class="section" id="capabilities">
+  <p class="section-kicker">Overview</p>
+  <h2>What's actually implemented</h2>
+  <p class="section-lede">
+    Every capability below maps to real code in the repository, not a roadmap item. See the
+    README's "What's aspirational" section for the honest list of what <em>isn't</em> there yet
+    (e.g. <code>exploit</code>/<code>test</code> run the same module set as <code>scan</code> with
+    different output, rather than a distinct exploitation engine).
+  </p>
+  <div class="grid">
+    <div class="card">
+      <h3>Scope &amp; authorization guard</h3>
+      <p>Every target host is checked against <code>config/scope.txt</code> or an explicit <code>--authorize</code>/interactive confirmation before any request is sent. Unauthorized targets raise <code>AuthorizationError</code> and exit non-zero.</p>
+    </div>
+    <div class="card">
+      <h3>SSRF protection</h3>
+      <p>Resolves every hostname and rejects private/loopback/link-local/metadata/multicast/reserved addresses — including on every redirect hop, not just the initial request.</p>
+    </div>
+    <div class="card">
+      <h3>Confidence-scored detection</h3>
+      <p>Findings carry a per-module confidence score; anything below <code>min_confidence</code> (default <code>0.6</code>) is filtered from the default report, so heuristic signals don't drown out confirmed behavior.</p>
+    </div>
+    <div class="card">
+      <h3>Plugin-based module system</h3>
+      <p>17 built-in detectors loaded through <code>core/plugin_manager.py</code>, enabled/disabled via <code>config/modules.yaml</code>, each contributing a uniform finding shape.</p>
+    </div>
+    <div class="card">
+      <h3>Risk scoring &amp; dedup</h3>
+      <p>Findings are scored from severity, confidence, evidence length, and endpoint sensitivity, then deduplicated by type/endpoint/payload before reporting.</p>
+    </div>
+    <div class="card">
+      <h3>Differential scanning</h3>
+      <p><code>core/diff_scan.py</code> compares a run against a baseline <code>findings.json</code> so CI can flag newly introduced issues.</p>
+    </div>
+    <div class="card">
+      <h3>Multi-format reporting</h3>
+      <p>Markdown, JSON, and SARIF output per run under <code>reports/output/run_&lt;timestamp&gt;/</code> — SARIF feeds straight into GitHub code scanning.</p>
+    </div>
+    <div class="card">
+      <h3>Real CI gate</h3>
+      <p><code>.github/workflows/ci.yml</code> runs the full pytest suite, then a real authorized headless scan against the bundled lab app with <code>--fail-on-findings</code>.</p>
+    </div>
+    <div class="card">
+      <h3>Bundled vulnerable lab app</h3>
+      <p><code>labapp/</code> is a small Flask app with intentional, well-understood vulnerabilities — a safe local target for trying every command with no external traffic.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="scanning">
+  <p class="section-kicker">Vulnerability scanning</p>
+  <h2>17 detection modules, one finding shape</h2>
+  <p class="section-lede">
+    Every module is a plugin that returns a list of findings against discovered endpoints — enabled
+    centrally in <code>config/modules.yaml</code>. No module reports a finding from a keyword match
+    alone; each requires an observed behavioral difference (reflected payload, differing status or
+    body, redirect to an attacker-controlled host, a missing header, etc.).
+  </p>
+
+  <div class="module-group">
+    <h3>Injection &amp; parsing</h3>
+    <div class="module-list">
+      <div class="module-item"><span class="name">xss</span><span class="desc">Reflected and basic injection-style XSS checks.</span></div>
+      <div class="module-item"><span class="name">sqli</span><span class="desc">Error-signature SQL injection detection.</span></div>
+      <div class="module-item"><span class="name">ssrf</span><span class="desc">Safe SSRF indicator checks using internal host payloads.</span></div>
+      <div class="module-item"><span class="name">xxe</span><span class="desc">XML External Entity parsing indicator checks.</span></div>
+      <div class="module-item"><span class="name">path_traversal</span><span class="desc">Directory traversal indicator checks.</span></div>
+      <div class="module-item"><span class="name">file_inclusion_indicator</span><span class="desc">File inclusion error-pattern checks.</span></div>
+      <div class="module-item"><span class="name">insecure_deserialization</span><span class="desc">Insecure deserialization error-pattern checks.</span></div>
+    </div>
+  </div>
+
+  <div class="module-group">
+    <h3>Access &amp; authentication</h3>
+    <div class="module-list">
+      <div class="module-item"><span class="name">auth_bypass</span><span class="desc">Missing authentication and access control checks.</span></div>
+      <div class="module-item"><span class="name">idor</span><span class="desc">Object-level authorization checks by ID mutation.</span></div>
+      <div class="module-item"><span class="name">jwt_validation_weaknesses</span><span class="desc">Weak JWT validation and insecure token handling checks.</span></div>
+      <div class="module-item"><span class="name">csrf</span><span class="desc">Missing CSRF token checks in forms.</span></div>
+    </div>
+  </div>
+
+  <div class="module-group">
+    <h3>Configuration &amp; hardening</h3>
+    <div class="module-list">
+      <div class="module-item"><span class="name">misconfig</span><span class="desc">Missing security header and baseline hardening checks.</span></div>
+      <div class="module-item"><span class="name">cors_misconfig</span><span class="desc">CORS allow-origin misconfiguration checks.</span></div>
+      <div class="module-item"><span class="name">open_redirect</span><span class="desc">Open redirect behavior checks.</span></div>
+      <div class="module-item"><span class="name">rate_limit_bruteforce</span><span class="desc">Rate limiting and brute-force resistance checks.</span></div>
+    </div>
+  </div>
+
+  <div class="module-group">
+    <h3>Application logic</h3>
+    <div class="module-list">
+      <div class="module-item"><span class="name">business_logic_abuse</span><span class="desc">Business workflow and tampering abuse indicators.</span></div>
+      <div class="module-item"><span class="name">graphql_specific_testing</span><span class="desc">GraphQL introspection and endpoint exposure checks.</span></div>
+      <div class="module-item"><span class="name">file_upload_testing</span><span class="desc">File upload validation and restriction weakness checks.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="authorization">
+  <p class="section-kicker">Authorization &amp; scope</p>
+  <h2>BugPilot refuses to request a target it isn't authorized for</h2>
+  <div class="twocol">
+    <div>
+      <p>
+        <code>core/scope.py</code> is the single gate every target passes through before any HTTP
+        request is made:
+      </p>
+      <ul>
+        <li>Hosts listed in <code>config/scope.txt</code> are pre-authorized.</li>
+        <li>Any other host requires an explicit <code>--authorize</code> flag (required in headless/CI mode), or a <code>y</code> answer to an interactive confirmation prompt.</li>
+        <li>Unauthorized targets raise <code>AuthorizationError</code> and the command exits non-zero — <strong>before</strong> any network request is made.</li>
+        <li>Once a host is authorized, the SSRF guard still allows private/loopback addresses <em>only</em> for that host — this is what lets you scan <code>127.0.0.1</code>/the bundled lab app locally while still blocking an unauthorized target's redirect from pivoting to internal/metadata addresses.</li>
+      </ul>
+      <p>Try it against the bundled lab app — safe, local, no external traffic:</p>
+      <pre><code>python -m labapp.app &amp;
+bugpilot scan http://127.0.0.1:5000 --authorize</code></pre>
+    </div>
+    <div>
+      <p class="example-label">core/scope.py — authorization decision</p>
+      <pre><code>for host in unauthorized:
+    if confirm:                    # --authorize
+        authorized.add(host)
+        continue
+    if interactive:                 # y/N prompt
+        answer = input(
+            f"[?] '{host}' is not in "
+            f"config/scope.txt. Confirm "
+            f"you are authorized (y/N): "
+        )
+        if answer.lower() in ("y", "yes"):
+            authorized.add(host)
+            continue
+        raise AuthorizationError(
+            f"Authorization declined for "
+            f"host: {host}"
+        )
+    raise AuthorizationError(
+        f"Host '{host}' is not authorized."
+    )</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ssrf">
+  <p class="section-kicker">SSRF protection &amp; confidence</p>
+  <h2>Fail-closed network guard, calibrated detection confidence</h2>
+  <div class="twocol">
+    <div>
+      <p><code>core/ssrf_guard.py</code> is the single place that decides whether a URL is safe for
+        the scanner to request. It is intentionally conservative — anything it cannot resolve or
+        classify is treated as unsafe:</p>
+      <ul>
+        <li>Resolves the hostname via <code>socket.getaddrinfo</code> and inspects every returned address.</li>
+        <li>Rejects private, loopback, link-local, multicast, reserved, and unspecified IP ranges.</li>
+        <li>Re-validated on <strong>every redirect hop</strong>, not just the initial request — <code>core/utils.py</code> follows redirects manually so each hop passes back through the guard.</li>
+        <li>Authorized hosts (scope-listed or <code>--authorize</code>'d) may still resolve to private addresses, so the bundled lab app keeps working.</li>
+        <li>DNS failures, unparseable URLs, and disallowed schemes all fail closed.</li>
+      </ul>
+      <p>
+        Confidence gating works the same way: <code>Scanner.run_modules()</code> drops any finding
+        below <code>config/settings.yaml</code>'s <code>min_confidence</code> (default
+        <code>0.6</code>). The following modules are heuristic by design and sit below that
+        threshold on purpose:
+      </p>
+    </div>
+    <div>
+      <p class="example-label">core/ssrf_guard.py — unsafe IP check</p>
+      <pre><code>def _is_unsafe_ip(ip_str):
+    ip = ipaddress.ip_address(ip_str)
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )</code></pre>
+    </div>
+  </div>
+  <table class="confidence">
+    <thead>
+      <tr><th>Module</th><th>Confidence</th><th>Why it's heuristic</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono-cell">idor</td><td>0.50</td><td>A differing response for a sequential ID is suggestive, not proof of an authorization flaw.</td></tr>
+      <tr><td class="mono-cell">csrf</td><td>0.55</td><td>Absence of a recognized token field name doesn't rule out other CSRF defenses (e.g. SameSite cookies).</td></tr>
+      <tr><td class="mono-cell">auth_bypass</td><td>0.40</td><td>Based on response-shape comparison, not a confirmed bypass.</td></tr>
+      <tr><td class="mono-cell">business_logic_abuse</td><td>0.50</td><td>Value echoing alone is weak evidence of a real logic flaw.</td></tr>
+      <tr><td class="mono-cell">rate_limit_bruteforce</td><td>0.55</td><td>Behavioral/statistical; can't rule out app-level controls like CAPTCHA.</td></tr>
+      <tr><td class="mono-cell">file_upload_testing</td><td>0.40</td><td>Missing a client-side <code>accept</code> attribute is not itself a server-side control.</td></tr>
+    </tbody>
+  </table>
+  <p class="section-lede" style="margin-top:18px;">
+    Everything else — <code>misconfig</code>, <code>xss</code>, <code>sqli</code>,
+    <code>open_redirect</code>, <code>cors_misconfig</code>, <code>path_traversal</code>,
+    <code>ssrf</code>, <code>xxe</code>, <code>jwt_validation_weaknesses</code>,
+    <code>insecure_deserialization</code>, <code>graphql_specific_testing</code>,
+    <code>file_inclusion_indicator</code> — scores at or above <code>0.6</code> and shows up by
+    default. Treat every finding as a lead to verify manually, not a confirmed vulnerability.
+  </p>
+</section>
+
+<section class="section" id="findings">
+  <p class="section-kicker">Example output</p>
+  <h2>Example security findings &amp; reports</h2>
+  <p class="section-lede">
+    The shapes below match the real fields produced by <code>core/scanner.py</code>'s
+    <code>_enrich_finding()</code> and <code>core/reporter.py</code>. The values are illustrative —
+    run a scan against a target you're authorized to test (or the bundled lab app) to get real
+    results.
+  </p>
+  <div class="example-pair">
+    <figure>
+      <figcaption><span class="example-label">Illustrative — findings.json entry</span></figcaption>
+      <pre><code>{
+  "type": "sql_injection",
+  "normalized_type": "sqli",
+  "module": "sqli",
+  "severity": "high",
+  "confidence": 0.8,
+  "endpoint": "http://127.0.0.1:5000/search?q=test",
+  "payload": "' OR '1'='1",
+  "evidence": "boolean/time response diff on injected parameter",
+  "risk_score": 78,
+  "risk_rating": "high",
+  "risk": "High likelihood of compromise or data exposure.",
+  "mitigation": "Use parameterized queries / prepared statements.",
+  "references": "CWE-89",
+  "vulnerability_point": "http://127.0.0.1:5000/search?q=test",
+  "target_response": {
+    "status_code": 200,
+    "content_type": "text/html",
+    "server": "Werkzeug",
+    "content_length": 4312
+  },
+  "lab_validation": "Replay against an intentional test environment and verify database error behavior only."
+}</code></pre>
+    </figure>
+    <figure>
+      <figcaption><span class="example-label">Illustrative — report.md excerpt</span></figcaption>
+      <pre><code># BugPilot Findings Report
+
+## Scan Context
+- Target Type: single
+- Targets: http://127.0.0.1:5000
+- Endpoints Discovered: 7
+- Findings: 3
+
+## Severity Summary
+- Critical: 0
+- High: 1
+- Medium: 2
+- Low: 0
+
+## Detailed Findings
+
+### 1. SQL_INJECTION (HIGH)
+- Module/Test Case: sqli
+- Endpoint: http://127.0.0.1:5000/search?q=test
+- Payload/Test Input: ' OR '1'='1
+- Evidence: boolean/time response diff
+- Risk Score: 78 (high)
+- Mitigation: Use parameterized queries.
+- Target Response Snapshot:
+  - status_code: 200
+  - server: Werkzeug</code></pre>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="architecture">
+  <p class="section-kicker">Architecture</p>
+  <h2>Scanning workflow</h2>
+  <p class="section-lede">
+    One HTTP chokepoint, one authorization gate, one confidence filter — every run follows the same
+    pipeline whether it's <code>scan</code>, <code>test</code>, or <code>exploit</code>.
+  </p>
+  <div class="pipeline">
+    <div class="pipe-step"><div class="n">01</div><div class="t">CLI entry</div><div class="d">bugpilot_cli.py routes scan/crawl/recon/test/exploit</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">02</div><div class="t">Scope &amp; authorize</div><div class="d">core/scope.py — allowlist, --authorize, or interactive y/N</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">03</div><div class="t">SSRF-guarded HTTP</div><div class="d">core/utils.py + core/ssrf_guard.py revalidate every redirect hop</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">04</div><div class="t">Recon &amp; crawl</div><div class="d">core/recon.py, core/crawler.py build endpoint inventory</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">05</div><div class="t">Module dispatch</div><div class="d">core/plugin_manager.py runs enabled modules/ detectors</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">06</div><div class="t">Confidence filter</div><div class="d">drop findings below min_confidence (0.6 default)</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">07</div><div class="t">Risk score &amp; dedup</div><div class="d">core/risk_scorer.py, core/validator.py</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="n">08</div><div class="t">Report artifacts</div><div class="d">core/reporter.py → report.md / findings.json / results.sarif</div></div>
+  </div>
+</section>
+
+<section class="section" id="install">
+  <p class="section-kicker">Installation</p>
+  <h2>Quick start</h2>
+  <div class="install-steps">
+    <div class="install-step">
+      <div class="k">1 — Clone &amp; install</div>
+      <pre><code>git clone https://github.com/imharshitaa/bugpilot.git
+cd bugpilot
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .[test,demo]</code></pre>
+    </div>
+    <div class="install-step">
+      <div class="k">2 — Try it safely against the bundled lab app</div>
+      <pre><code>python -m labapp.app &amp;
+bugpilot scan http://127.0.0.1:5000 --authorize</code></pre>
+    </div>
+    <div class="install-step">
+      <div class="k">3 — Command reference</div>
+      <pre><code>bugpilot scan &lt;url&gt; [--authorize] [-export [path]]
+bugpilot crawl &lt;url&gt; [-authorize] [-export [path]]
+bugpilot recon &lt;url&gt; [-authorize] [-export [path]]
+bugpilot test &lt;url&gt; [--authorize] [-export [path]]
+bugpilot exploit &lt;url&gt; [--authorize] [-export [path]]</code></pre>
+    </div>
+    <div class="install-step">
+      <div class="k">4 — Headless / CI mode</div>
+      <pre><code>python3 main.py --headless \
+  --targets http://127.0.0.1:5000/ \
+  --authorize \
+  --modules all \
+  --formats json,sarif \
+  --fail-on-findings</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="terminal">
+  <p class="section-kicker">Interactive demo</p>
+  <h2>Terminal (simulated)</h2>
+  <div class="terminal-banner">
+    <span>⚠</span>
+    <span><strong>SIMULATED OUTPUT.</strong> This is a scripted transcript for illustration only — it runs entirely in your browser, makes no network requests, and does not invoke the real scanner. For an actual scan, install the CLI and run it locally (see Install above) against a target you are authorized to test, ideally the bundled lab app.</span>
+  </div>
+  <div class="term">
+    <div class="term-bar">
+      <span class="term-dot r"></span><span class="term-dot y"></span><span class="term-dot g"></span>
+      <span class="term-title">bugpilot — simulated terminal</span>
+    </div>
+    <div class="term-body">
+      <div class="term-meta">
+        <div>Commands: <span class="hl">bugpilot scan|crawl|recon|test|exploit &lt;sample-url&gt;</span>, <span class="hl">help</span>, <span class="hl">clear</span></div>
+        <div>Sample URLs: testphp.vulnweb.com, testhtml5.vulnweb.com, zero.webappsecurity.com, demo.testfire.net, juice-shop.herokuapp.com</div>
+      </div>
+      <div id="term-output" class="term-output" aria-live="polite"></div>
+      <div class="term-input-row">
+        <span class="term-prompt">&gt;&gt;&gt;</span>
+        <input id="term-input" class="term-input" type="text" autocomplete="off" spellcheck="false" placeholder="bugpilot scan http://testphp.vulnweb.com" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-grid">
+    <div>
+      <h4>BugPilot</h4>
+      <p>A personal, independent open-source project for authorized web/API security testing. Not affiliated with, and shares no code or architecture with, any employer or proprietary codebase.</p>
+    </div>
+    <div>
+      <h4>Project</h4>
+      <ul>
+        <li><a href="https://github.com/imharshitaa/bugpilot" target="_blank" rel="noopener">Repository ↗</a></li>
+        <li><a href="https://github.com/imharshitaa/bugpilot/blob/main/README.md" target="_blank" rel="noopener">README ↗</a></li>
+        <li><a href="https://github.com/imharshitaa/bugpilot/blob/main/doc.md" target="_blank" rel="noopener">Technical blueprint (doc.md) ↗</a></li>
+        <li><a href="https://github.com/imharshitaa/bugpilot/blob/main/.github/workflows/ci.yml" target="_blank" rel="noopener">CI workflow ↗</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#authorization">Authorization &amp; scope</a></li>
+        <li><a href="#ssrf">SSRF &amp; confidence</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#terminal">Simulated terminal</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-notice">
+    <strong>Authorization notice:</strong> only use BugPilot against systems you are explicitly
+    authorized to test. The scope guard and SSRF protection exist to make accidental out-of-scope
+    testing hard, not to make unauthorized testing easy — they are not a substitute for having real
+    authorization.
+  </div>
+</footer>
+
+<script src="./app.js"></script>
+</body>
+</html>
