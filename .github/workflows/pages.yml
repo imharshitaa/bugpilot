@@ -1,11 +1,12 @@
-name: Deploy Demo To GitHub Pages
+name: Deploy Product Page To GitHub Pages
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "demo/**"
+      - "product-page/**"
       - "index.html"
+      - "docs/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 

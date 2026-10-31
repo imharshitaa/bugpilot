@@ -177,18 +177,22 @@ configured in this repository.
 - `config/modules.yaml` / `config/plugins.yaml` — built-in/external module registry.
 - `config/payload_rules.yaml` — payload and indicator definitions.
 
-## Demo page
+## Product page
 
-`demo/index.html` (served at `https://imharshitaa.github.io/bugpilot/demo/`) is a terminal-style
-UI for showing the CLI's shape. **By default it has no backend connected and every command is a
-scripted simulation** — it does not scan, crawl, or make any network request. A persistent banner
-on the page states this. For a real scan, run the CLI locally as shown above.
+`product-page/index.html` (served at `https://imharshitaa.github.io/bugpilot/product-page/`) is
+the public product page: an overview of BugPilot's capabilities, the detection modules, the
+authorization/SSRF model, example finding/report shapes, the scanning architecture, install
+instructions, and an embedded terminal. **The embedded terminal is a scripted simulation only** —
+it runs entirely client-side, makes no network requests, and does not invoke the real scanner. A
+persistent banner on the page states this. For a real scan, run the CLI locally as shown above.
 
 Local preview:
 
 ```bash
 python3 -m http.server 8080 --bind 127.0.0.1 --directory .
 ```
+
+Then open `http://127.0.0.1:8080/product-page/`.
 
 ## Authorization notice
 
